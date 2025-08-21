@@ -295,6 +295,11 @@ declare module 'react-native-health' {
       callback: (err: string, results: Array<BloodPressureSampleValue>) => void,
     ): void
 
+    saveBloodPressureSamples(
+      options: HealthInputOptions,
+      callback: (err: string, results: Array<BloodPressureSampleValue>) => void,
+    ): void
+
     getRespiratoryRateSamples(
       options: HealthInputOptions,
       callback: (err: string, results: Array<HealthValue>) => void,
@@ -462,6 +467,40 @@ declare module 'react-native-health' {
       callback: (error: string, result: HealthValue) => void,
     ): void
 
+    getMedicationRecords(
+      options: HealthInputOptions | null,
+      callback: (err: string, results: Array<HealthValue>) => void,
+    ): void
+
+    getConditionRecords(
+      options: HealthInputOptions | null,
+      callback: (err: string, results: Array<HealthValue>) => void,
+    ): void
+
+    getAllergyRecords(
+      options: HealthInputOptions | null,
+      callback: (err: string, results: Array<HealthValue>) => void,
+    ): void
+
+    getImmunizationRecords(
+      options: HealthInputOptions | null,
+      callback: (err: string, results: Array<HealthValue>) => void,
+    ): void
+
+    getProcedureRecords(
+      options: HealthInputOptions | null,
+      callback: (err: string, results: Array<HealthValue>) => void,
+    ): void
+
+    getLabRecords(
+      options: HealthInputOptions | null,
+      callback: (err: string, results: Array<HealthValue>) => void,
+    ): void
+
+    getClinicalVitalRecords(
+      options: HealthInputOptions | null,
+      callback: (err: string, results: Array<HealthValue>) => void,
+    ): void
 
     Constants: Constants
   }

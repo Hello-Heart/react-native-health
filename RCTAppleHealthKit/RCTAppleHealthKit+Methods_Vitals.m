@@ -400,6 +400,37 @@
     }];
 }
 
+- (void)vitals_saveBloodPressureSamples:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback
+{
+
+    NSDate *sampleDate = [RCTAppleHealthKit dateFromOptionsDefaultNow:input];
+
+    // Build systolic object
+    double systolic = [RCTAppleHealthKit doubleFromOptions:input key:@"systolic" withDefault:0];
+    HKQuantityType *systolicType = [HKQuantityType quantityTypeForIdentifier:HKQuantityTypeIdentifierBloodPressureSystolic];
+    HKQuantity *systolicQuantity = [HKQuantity quantityWithUnit:[HKUnit millimeterOfMercuryUnit] doubleValue:systolic];
+    HKQuantitySample *systolicSample = [HKQuantitySample quantitySampleWithType:systolicType quantity:systolicQuantity startDate:sampleDate endDate:sampleDate];
+    
+    // Build diastolic object
+    double diastolic = [RCTAppleHealthKit doubleFromOptions:input key:@"diastolic" withDefault:0];
+    HKQuantityType *diastolicType = [HKQuantityType quantityTypeForIdentifier:HKQuantityTypeIdentifierBloodPressureDiastolic];
+    HKQuantity *diastolicQuantity = [HKQuantity quantityWithUnit:[HKUnit millimeterOfMercuryUnit] doubleValue:diastolic];
+    HKQuantitySample *diastolicSample = [HKQuantitySample quantitySampleWithType:diastolicType quantity:diastolicQuantity startDate:sampleDate endDate:sampleDate];
+
+    HKCorrelationType *bloodPressureType = [HKObjectType correlationTypeForIdentifier:HKCorrelationTypeIdentifierBloodPressure];
+    NSSet *bloodObjects = [NSSet setWithObjects:systolicSample, diastolicSample, nil];
+
+    HKCorrelation *bloodPressure = [HKCorrelation correlationWithType:bloodPressureType startDate:sampleDate endDate:sampleDate objects:bloodObjects];
+
+    [self.healthStore saveObject:bloodPressure withCompletion:^(BOOL success, NSError *error) {
+        if (!success) {
+            NSLog(@"error saving the blood pressure sample: %@", error);
+            callback(@[RCTMakeError(@"error saving the blood pressure sample", error, nil)]);
+            return;
+        }
+        callback(@[[NSNull null], @(systolic)]);
+    }];
+}
 
 - (void)vitals_getRespiratoryRateSamples:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback
 {
