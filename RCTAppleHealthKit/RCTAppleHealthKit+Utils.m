@@ -224,6 +224,8 @@ NSString * const kMetadataKey = @"metadata";
         return [HKObjectType quantityTypeForIdentifier:HKQuantityTypeIdentifierStepCount];
     } else if ([type isEqual:@"Workout"]) {
         return [HKObjectType workoutType];
+    } else if ([type isEqual:@"DietaryCholesterol"]) {
+        return [HKObjectType quantityTypeForIdentifier:HKQuantityTypeIdentifierDietaryCholesterol];
     }
 
     return [HKObjectType workoutType];
