@@ -256,18 +256,30 @@
                 for (HKQuantitySample *sample in results) {
                     HKQuantity *quantity = sample.quantity;
                     double value = [quantity doubleValueForUnit:unit];
+                    NSString *unitString = [unit unitString];
 
                     NSString *startDateString = [RCTAppleHealthKit buildISO8601StringFromDate:sample.startDate];
                     NSString *endDateString = [RCTAppleHealthKit buildISO8601StringFromDate:sample.endDate];
 
                     NSMutableDictionary *elem = [NSMutableDictionary dictionaryWithDictionary:@{
                             @"value" : @(value),
-                            @"id" : [[sample UUID] UUIDString],
-                            @"sourceName" : [[[sample sourceRevision] source] name],
-                            @"sourceId" : [[[sample sourceRevision] source] bundleIdentifier],
+                            @"unit" : unitString ?: [NSNull null],
+                            @"id" : [[sample UUID] UUIDString] ?: [NSNull null],
+                            @"sourceName" : [[[sample sourceRevision] source] name] ?: [NSNull null],
+                            @"sourceId" : [[[sample sourceRevision] source] bundleIdentifier] ?: [NSNull null],
                             @"startDate" : startDateString,
                             @"endDate" : endDateString,
                     }];
+
+                    HKDevice *device = [sample device];
+                    if (device != nil) {
+                        elem[@"device"] = @{
+                            @"name"            : [device name] ?: [NSNull null],
+                            @"model"           : [device model] ?: [NSNull null],
+                            @"hardwareVersion" : [device hardwareVersion] ?: [NSNull null],
+                            @"softwareVersion" : [device softwareVersion] ?: [NSNull null],
+                        };
+                    }
 
                     NSDictionary *metadata = [sample metadata];
                     if (metadata) {
