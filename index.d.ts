@@ -7,10 +7,11 @@ declare module 'react-native-health' {
   }
 
   export interface Constants {
-    Activities: Record<HealthActivity, HealthActivity>
-    Observers: Record<HealthObserver, HealthObserver>
+    Activities:  Record<HealthActivity,   HealthActivity>
+    Observers:   Record<HealthObserver,   HealthObserver>
+    Periods:     Record<string,           HealthPeriod>
     Permissions: Record<HealthPermission, HealthPermission>
-    Units: Record<HealthUnit, HealthUnit>
+    Units:       Record<HealthUnit,       HealthUnit>
   }
 
   export interface HKErrorResponse {
@@ -153,6 +154,16 @@ declare module 'react-native-health' {
     getAnchoredWorkouts(
       options: HealthInputOptions,
       callback: (err: HKErrorResponse, results: AnchoredQueryResults) => void,
+    ): void
+
+    getDeltaSamples(
+      options: DeltaQueryOptions,
+      callback: (err: HKErrorResponse, results: DeltaQueryResult) => void,
+    ): void
+
+    getDeltaSamplesForPermissions(
+      requests: DeltaQueryOptions[],
+      callback: (err: HKErrorResponse, results: Record<string, DeltaQueryResult>) => void,
     ): void
 
     getDailyStepCountSamples(
@@ -899,6 +910,35 @@ declare module 'react-native-health' {
   export interface WorkoutRouteQueryResults {
     anchor: string
     data: HKWorkoutRouteSampleType
+  }
+
+  export type HealthPeriod =
+    | 'last24hours'   // rolling: now - 24h → now
+    | 'today'         // calendar day: midnight → now
+    | 'last7days'
+    | 'last30days'
+    | 'last3months'
+    | 'last6months'
+    | 'lastYear'
+
+  export interface DeletedSample {
+    id: string
+  }
+
+  export interface DeltaQueryResult {
+    anchor:  string
+    added:   HealthValue[]
+    deleted: DeletedSample[]
+  }
+
+  export interface DeltaQueryOptions {
+    type:       HealthObserver
+    anchor?:    string
+    unit?:      HealthUnit
+    startDate?: string
+    endDate?:   string
+    period?:    HealthPeriod
+    limit?:     number
   }
 
   export enum HealthObserver {
