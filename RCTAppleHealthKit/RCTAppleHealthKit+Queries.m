@@ -1222,58 +1222,131 @@
                     bridge:(RCTBridge *)bridge
                     hasListeners:(bool)hasListeners
 {
-    HKObserverQuery* query = [
-        [HKObserverQuery alloc] initWithSampleType:sampleType
-                                         predicate:nil
-                                     updateHandler:^(HKObserverQuery* query,
-                                                     HKObserverQueryCompletionHandler completionHandler,
-                                                     NSError * _Nullable error) {
-        NSLog(@"[HealthKit] New sample received from Apple HealthKit - %@", type);
+    NSString *deltaEvent        = [NSString stringWithFormat:@"healthKit:%@:delta",         type];
+    NSString *newEvent          = [NSString stringWithFormat:@"healthKit:%@:new",           type];
+    NSString *failureEvent      = [NSString stringWithFormat:@"healthKit:%@:failure",       type];
+    NSString *anchorKey         = [NSString stringWithFormat:@"RNHealth_DeltaAnchor_%@",    type];
+    NSString *setupSuccessEvent = [NSString stringWithFormat:@"healthKit:%@:setup:success", type];
+    NSString *setupFailureEvent = [NSString stringWithFormat:@"healthKit:%@:setup:failure", type];
 
-        NSString *successEvent = [NSString stringWithFormat:@"healthKit:%@:new", type];
-        NSString *failureEvent = [NSString stringWithFormat:@"healthKit:%@:failure", type];
+    // --- Anchor seeding ---
+    // Run a limit:0 anchored query on first registration to capture the current
+    // cursor. Without this, the first observer delivery would return all
+    // HealthKit history as a "delta".
+    BOOL hasStoredAnchor = ([[NSUserDefaults standardUserDefaults] stringForKey:anchorKey] != nil);
+    if (!hasStoredAnchor && ![type isEqualToString:@"Workout"]) {
+        HKQuantityType *qt = (HKQuantityType *)[RCTAppleHealthKit quantityTypeFromName:type];
+        if (qt && ![qt isEqual:[HKObjectType workoutType]]) {
+            HKUnit *unit = [RCTAppleHealthKit defaultHKUnitForType:type];
+            [self fetchAnchoredSamplesOfType:qt
+                                        unit:unit
+                                   predicate:nil
+                                      anchor:nil
+                                       limit:0
+                                  completion:^(NSDictionary *results, NSError *error) {
+                NSString *seedAnchor = results[@"anchor"];
+                if (seedAnchor) {
+                    [[NSUserDefaults standardUserDefaults] setObject:seedAnchor forKey:anchorKey];
+                    NSLog(@"[HealthKit] Anchor seeded for %@", type);
+                }
+            }];
+        }
+    }
+
+    // --- Observer ---
+    HKObserverQuery *query = [[HKObserverQuery alloc]
+        initWithSampleType:sampleType
+                 predicate:nil
+             updateHandler:^(HKObserverQuery *query,
+                             HKObserverQueryCompletionHandler completionHandler,
+                             NSError * _Nullable error) {
+
+        NSLog(@"[HealthKit] Observer fired for %@", type);
 
         if (error) {
             completionHandler();
-
-            NSLog(@"[HealthKit] An error happened when receiving a new sample - %@", error.localizedDescription);
-            if(self.hasListeners) {
+            if (self.hasListeners) {
                 [self emitEventWithName:failureEvent andPayload:@{}];
             }
             return;
         }
 
-        if(self.hasListeners) {
-            [self emitEventWithName:successEvent andPayload:@{}];
-        } else {
-          NSLog(@"There is no listeners for %@", successEvent);
+        // Workout: bare :new only (full delta via getDeltaSamples)
+        if ([type isEqualToString:@"Workout"]) {
+            if (self.hasListeners) {
+                [self emitEventWithName:newEvent andPayload:@{}];
+            }
+            completionHandler();
+            return;
         }
-        completionHandler();
 
-        NSLog(@"[HealthKit] New sample from Apple HealthKit processed - %@ %@", type, successEvent);
+        HKQuantityType *quantityType = (HKQuantityType *)[RCTAppleHealthKit quantityTypeFromName:type];
+        if (!quantityType || [quantityType isEqual:[HKObjectType workoutType]]) {
+            if (self.hasListeners) {
+                [self emitEventWithName:newEvent andPayload:@{}];
+            }
+            completionHandler();
+            return;
+        }
+
+        // Read stored anchor
+        HKQueryAnchor *storedAnchor = nil;
+        NSString *stored = [[NSUserDefaults standardUserDefaults] stringForKey:anchorKey];
+        if (stored.length) {
+            NSData *anchorData = [[NSData alloc] initWithBase64EncodedString:stored options:0];
+            storedAnchor = [NSKeyedUnarchiver unarchiveObjectWithData:anchorData];
+        }
+
+        HKUnit *unit = [RCTAppleHealthKit defaultHKUnitForType:type];
+
+        [self fetchAnchoredSamplesOfType:quantityType
+                                    unit:unit
+                               predicate:nil
+                                  anchor:storedAnchor
+                                   limit:HKObjectQueryNoLimit
+                              completion:^(NSDictionary *results, NSError *fetchError) {
+
+            // Always call completionHandler — HealthKit stops background delivery if omitted
+            completionHandler();
+
+            if (fetchError || !results) {
+                NSLog(@"[HealthKit] Delta fetch error for %@: %@", type, fetchError.localizedDescription);
+                if (self.hasListeners) {
+                    [self emitEventWithName:failureEvent andPayload:@{}];
+                }
+                return;
+            }
+
+            // Persist new anchor BEFORE emitting — next delivery starts correctly
+            NSString *newAnchorString = results[@"anchor"];
+            if (newAnchorString) {
+                [[NSUserDefaults standardUserDefaults] setObject:newAnchorString forKey:anchorKey];
+            }
+
+            if (self.hasListeners) {
+                [self emitEventWithName:deltaEvent andPayload:results];
+                // Keep :new for backwards compatibility
+                [self emitEventWithName:newEvent andPayload:@{}];
+            }
+        }];
     }];
-
 
     [self.healthStore enableBackgroundDeliveryForType:sampleType
                                             frequency:HKUpdateFrequencyImmediate
                                        withCompletion:^(BOOL success, NSError * _Nullable error) {
-        NSString *successEvent = [NSString stringWithFormat:@"healthKit:%@:setup:success", type];
-        NSString *failureEvent = [NSString stringWithFormat:@"healthKit:%@:setup:failure", type];
-
         if (error) {
-            NSLog(@"[HealthKit] An error happened when setting up background observer - %@", error.localizedDescription);
-            if(self.hasListeners) {
-                [self emitEventWithName:failureEvent andPayload:@{}];
+            NSLog(@"[HealthKit] Background delivery setup error for %@: %@", type, error.localizedDescription);
+            if (self.hasListeners) {
+                [self emitEventWithName:setupFailureEvent andPayload:@{}];
             }
             return;
         }
         NSLog(@"[HealthKit] Background delivery enabled for %@", type);
         [self.healthStore executeQuery:query];
-          if(self.hasListeners) {
-              NSLog(@"[HealthKit] Background observer set up for %@", type);
-              [self emitEventWithName:successEvent andPayload:@{}];
-          }
-        }];
+        if (self.hasListeners) {
+            [self emitEventWithName:setupSuccessEvent andPayload:@{}];
+        }
+    }];
 }
 
 - (void)fetchActivitySummary:(NSDate *)startDate
