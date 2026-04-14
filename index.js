@@ -1,4 +1,4 @@
-import { Activities, Observers, Periods, Permissions, Units } from './src/constants'
+import { Activities, Observers, Periods, Permissions, SyncIntervals, Units } from './src/constants'
 import { Platform } from 'react-native'
 
 
@@ -37,6 +37,7 @@ export const HealthKit =
         getStepCount: AppleHealthKit.getStepCount,
         getSamples: AppleHealthKit.getSamples,
         getAnchoredWorkouts: AppleHealthKit.getAnchoredWorkouts,
+        configureBackgroundSync: AppleHealthKit.configureBackgroundSync,
         getDeltaSamples: AppleHealthKit.getDeltaSamples,
         getDeltaSamplesForPermissions: function(requests, callback) {
           if (!requests || requests.length === 0) {
@@ -147,6 +148,7 @@ export const HealthKit =
           Observers,
           Periods,
           Permissions,
+          SyncIntervals,
           Units,
         },
       }

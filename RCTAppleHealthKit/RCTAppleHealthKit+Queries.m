@@ -1289,6 +1289,24 @@
             return;
         }
 
+        // Time gate: skip fetch if less than the configured sync interval has elapsed.
+        // Default 86400s (24h) if configureBackgroundSync was never called.
+        NSTimeInterval syncInterval = [[NSUserDefaults standardUserDefaults]
+            doubleForKey:@"RNHealth_SyncInterval"];
+        if (syncInterval <= 0) syncInterval = 86400.0;
+
+        NSString *lastFetchKey = [NSString stringWithFormat:@"RNHealth_LastFetch_%@", type];
+        NSDate   *lastFetch    = [[NSUserDefaults standardUserDefaults] objectForKey:lastFetchKey];
+        NSTimeInterval elapsed = lastFetch ? [[NSDate date] timeIntervalSinceDate:lastFetch]
+                                           : DBL_MAX;
+
+        if (elapsed < syncInterval) {
+            NSLog(@"[HealthKit] Skipping delta fetch for %@ (%.0fs < %.0fs interval)",
+                  type, elapsed, syncInterval);
+            completionHandler(); // must always be called
+            return;
+        }
+
         // Read stored anchor
         HKQueryAnchor *storedAnchor = nil;
         NSString *stored = [[NSUserDefaults standardUserDefaults] stringForKey:anchorKey];
@@ -1322,6 +1340,9 @@
             if (newAnchorString) {
                 [[NSUserDefaults standardUserDefaults] setObject:newAnchorString forKey:anchorKey];
             }
+
+            // Stamp last-fetch time so the time gate works on the next observer fire
+            [[NSUserDefaults standardUserDefaults] setObject:[NSDate date] forKey:lastFetchKey];
 
             if (self.hasListeners) {
                 [self emitEventWithName:deltaEvent andPayload:results];

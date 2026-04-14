@@ -7,11 +7,12 @@ declare module 'react-native-health' {
   }
 
   export interface Constants {
-    Activities:  Record<HealthActivity,   HealthActivity>
-    Observers:   Record<HealthObserver,   HealthObserver>
-    Periods:     Record<string,           HealthPeriod>
-    Permissions: Record<HealthPermission, HealthPermission>
-    Units:       Record<HealthUnit,       HealthUnit>
+    Activities:    Record<HealthActivity,   HealthActivity>
+    Observers:     Record<HealthObserver,   HealthObserver>
+    Periods:       Record<string,           HealthPeriod>
+    Permissions:   Record<HealthPermission, HealthPermission>
+    SyncIntervals: Record<string,           SyncInterval>
+    Units:         Record<HealthUnit,       HealthUnit>
   }
 
   export interface HKErrorResponse {
@@ -155,6 +156,8 @@ declare module 'react-native-health' {
       options: HealthInputOptions,
       callback: (err: HKErrorResponse, results: AnchoredQueryResults) => void,
     ): void
+
+    configureBackgroundSync(options: BackgroundSyncOptions): void
 
     getDeltaSamples(
       options: DeltaQueryOptions,
@@ -920,6 +923,19 @@ declare module 'react-native-health' {
     | 'last3months'
     | 'last6months'
     | 'lastYear'
+
+  /** Minimum time between background delta fetches. Default: 'every24hours'. */
+  export type SyncInterval =
+    | 'every1hour'
+    | 'every6hours'
+    | 'every12hours'
+    | 'every24hours'
+    | 'every48hours'
+    | 'everyweek'
+
+  export interface BackgroundSyncOptions {
+    syncInterval?: SyncInterval
+  }
 
   export interface DeletedSample {
     id: string

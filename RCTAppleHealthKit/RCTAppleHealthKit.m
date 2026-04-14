@@ -248,6 +248,23 @@ RCT_EXPORT_METHOD(getAnchoredWorkouts:(NSDictionary *)input callback:(RCTRespons
     [self workout_getAnchoredQuery:input callback:callback];
 }
 
++ (NSTimeInterval)syncIntervalFromString:(NSString *)interval {
+    if ([interval isEqualToString:@"every1hour"])   return 3600.0;
+    if ([interval isEqualToString:@"every6hours"])  return 21600.0;
+    if ([interval isEqualToString:@"every12hours"]) return 43200.0;
+    if ([interval isEqualToString:@"every48hours"]) return 172800.0;
+    if ([interval isEqualToString:@"everyweek"])    return 604800.0;
+    return 86400.0; // default: every24hours
+}
+
+RCT_EXPORT_METHOD(configureBackgroundSync:(NSDictionary *)input)
+{
+    NSString *interval = [input objectForKey:@"syncInterval"];
+    NSTimeInterval seconds = [RCTAppleHealthKit syncIntervalFromString:interval ?: @""];
+    [[NSUserDefaults standardUserDefaults] setDouble:seconds forKey:@"RNHealth_SyncInterval"];
+    NSLog(@"[HealthKit] Background sync interval set to %.0fs", seconds);
+}
+
 + (NSDate *)startDateFromPeriod:(NSString *)period {
     NSCalendar *cal = [NSCalendar currentCalendar];
     NSDate *now     = [NSDate date];
