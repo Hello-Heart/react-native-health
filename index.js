@@ -1,4 +1,4 @@
-import { Activities, Observers, Permissions, Units } from './src/constants'
+import { Activities, Observers, Periods, Permissions, Units } from './src/constants'
 import { Platform } from 'react-native'
 
 
@@ -37,6 +37,34 @@ export const HealthKit =
         getStepCount: AppleHealthKit.getStepCount,
         getSamples: AppleHealthKit.getSamples,
         getAnchoredWorkouts: AppleHealthKit.getAnchoredWorkouts,
+        getDeltaSamples: AppleHealthKit.getDeltaSamples,
+        getDeltaSamplesForPermissions: function(requests, callback) {
+          if (!requests || requests.length === 0) {
+            callback(null, {})
+            return
+          }
+          const results = {}
+          let pending = requests.length
+          let settled = false
+
+          requests.forEach(function(options) {
+            const type = options.type
+            AppleHealthKit.getDeltaSamples(options, function(err, result) {
+              if (settled) return
+              if (err) {
+                settled = true
+                callback(err, null)
+                return
+              }
+              results[type] = result
+              pending -= 1
+              if (pending === 0) {
+                settled = true
+                callback(null, results)
+              }
+            })
+          })
+        },
         getDailyStepCountSamples: AppleHealthKit.getDailyStepCountSamples,
         saveSteps: AppleHealthKit.saveSteps,
         saveWalkingRunningDistance: AppleHealthKit.saveWalkingRunningDistance,
@@ -117,6 +145,7 @@ export const HealthKit =
         Constants: {
           Activities,
           Observers,
+          Periods,
           Permissions,
           Units,
         },
