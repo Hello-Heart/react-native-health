@@ -264,13 +264,15 @@ RCT_EXPORT_METHOD(configureBackgroundSync:(NSDictionary *)input)
         : YES;
     [[NSUserDefaults standardUserDefaults] setBool:enabled forKey:@"RNHealth_SyncEnabled"];
 
-    if (enabled) {
-        NSString *interval = [input objectForKey:@"syncInterval"];
-        NSTimeInterval seconds = [RCTAppleHealthKit syncIntervalFromString:interval ?: @""];
+    // Always persist syncInterval so it survives enable/disable cycles.
+    // Stored even when disabled so re-enabling later uses the correct value.
+    NSString *interval = [input objectForKey:@"syncInterval"];
+    if (interval) {
+        NSTimeInterval seconds = [RCTAppleHealthKit syncIntervalFromString:interval];
         [[NSUserDefaults standardUserDefaults] setDouble:seconds forKey:@"RNHealth_SyncInterval"];
-        NSLog(@"[HealthKit] Background sync enabled, interval %.0fs", seconds);
+        NSLog(@"[HealthKit] Background sync %@, interval %.0fs", enabled ? @"enabled" : @"disabled", seconds);
     } else {
-        NSLog(@"[HealthKit] Background sync disabled");
+        NSLog(@"[HealthKit] Background sync %@", enabled ? @"enabled" : @"disabled");
     }
 }
 
