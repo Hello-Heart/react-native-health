@@ -248,6 +248,88 @@ RCT_EXPORT_METHOD(getAnchoredWorkouts:(NSDictionary *)input callback:(RCTRespons
     [self workout_getAnchoredQuery:input callback:callback];
 }
 
++ (NSDate *)startDateFromPeriod:(NSString *)period {
+    NSCalendar *cal = [NSCalendar currentCalendar];
+    NSDate *now     = [NSDate date];
+    if ([period isEqualToString:@"last24hours"]) {
+        return [cal dateByAddingUnit:NSCalendarUnitHour  value:-24  toDate:now options:0];
+    }
+    if ([period isEqualToString:@"today"]) {
+        return [cal startOfDayForDate:now];
+    }
+    if ([period isEqualToString:@"last7days"]) {
+        return [cal dateByAddingUnit:NSCalendarUnitDay   value:-7   toDate:now options:0];
+    }
+    if ([period isEqualToString:@"last30days"]) {
+        return [cal dateByAddingUnit:NSCalendarUnitDay   value:-30  toDate:now options:0];
+    }
+    if ([period isEqualToString:@"last3months"]) {
+        return [cal dateByAddingUnit:NSCalendarUnitMonth value:-3   toDate:now options:0];
+    }
+    if ([period isEqualToString:@"last6months"]) {
+        return [cal dateByAddingUnit:NSCalendarUnitMonth value:-6   toDate:now options:0];
+    }
+    if ([period isEqualToString:@"lastYear"]) {
+        return [cal dateByAddingUnit:NSCalendarUnitYear  value:-1   toDate:now options:0];
+    }
+    return nil;
+}
+
+RCT_EXPORT_METHOD(getDeltaSamples:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback)
+{
+    [self _initializeHealthStore];
+
+    NSString *type = [RCTAppleHealthKit stringFromOptions:input key:@"type" withDefault:@""];
+
+    // Workout: delegate to existing anchored workout method unchanged
+    if ([type isEqualToString:@"Workout"]) {
+        [self workout_getAnchoredQuery:input callback:callback];
+        return;
+    }
+
+    HKQuantityType *quantityType = (HKQuantityType *)[RCTAppleHealthKit quantityTypeFromName:type];
+    if (!quantityType || [quantityType isEqual:[HKObjectType workoutType]]) {
+        callback(@[RCTMakeError(@"getDeltaSamples: unsupported type", nil, @{ @"type": type })]);
+        return;
+    }
+
+    // Unit: caller-supplied → type default
+    HKUnit *unit;
+    NSString *unitString = [input objectForKey:@"unit"];
+    if (unitString.length) {
+        @try { unit = [HKUnit unitFromString:unitString]; }
+        @catch (NSException *e) { unit = [RCTAppleHealthKit defaultHKUnitForType:type]; }
+    } else {
+        unit = [RCTAppleHealthKit defaultHKUnitForType:type];
+    }
+
+    HKQueryAnchor *anchor = [RCTAppleHealthKit hkAnchorFromOptions:input];
+    NSUInteger limit      = [RCTAppleHealthKit uintFromOptions:input key:@"limit" withDefault:HKObjectQueryNoLimit];
+
+    // Date range: explicit startDate wins; period string is the fallback
+    NSDate *startDate = [RCTAppleHealthKit dateFromOptions:input key:@"startDate" withDefault:nil];
+    NSString *periodString = [input objectForKey:@"period"];
+    if (startDate == nil && periodString.length) {
+        startDate = [RCTAppleHealthKit startDateFromPeriod:periodString];
+    }
+    NSDate *endDate = [RCTAppleHealthKit dateFromOptions:input key:@"endDate" withDefault:[NSDate date]];
+
+    NSPredicate *predicate = [RCTAppleHealthKit predicateForAnchoredQueries:anchor startDate:startDate endDate:endDate];
+
+    [self fetchAnchoredSamplesOfType:quantityType
+                                unit:unit
+                           predicate:predicate
+                              anchor:anchor
+                               limit:limit
+                          completion:^(NSDictionary *results, NSError *error) {
+        if (error) {
+            callback(@[RCTMakeError(@"getDeltaSamples error", error, nil)]);
+            return;
+        }
+        callback(@[[NSNull null], results]);
+    }];
+}
+
 RCT_EXPORT_METHOD(getWorkoutRouteSamples:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback)
 {
     [self _initializeHealthStore];
@@ -738,7 +820,7 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
         @"InsulinDelivery"
     ];
     
-    NSArray *templates = @[@"healthKit:%@:new", @"healthKit:%@:failure", @"healthKit:%@:enabled", @"healthKit:%@:sample", @"healthKit:%@:setup:success", @"healthKit:%@:setup:failure"];
+    NSArray *templates = @[@"healthKit:%@:new", @"healthKit:%@:failure", @"healthKit:%@:enabled", @"healthKit:%@:sample", @"healthKit:%@:setup:success", @"healthKit:%@:setup:failure", @"healthKit:%@:delta"];
     
     NSMutableArray *supportedEvents = [[NSMutableArray alloc] init];
 
