@@ -1271,6 +1271,15 @@
             return;
         }
 
+        // Background sync disabled — app must call configureBackgroundSync({ enabled: true }).
+        // Defaults to disabled if the key was never written (opt-in behaviour).
+        NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+        if ([defaults objectForKey:@"RNHealth_SyncEnabled"] == nil ||
+            ![defaults boolForKey:@"RNHealth_SyncEnabled"]) {
+            completionHandler();
+            return;
+        }
+
         // Workout: bare :new only (full delta via getDeltaSamples)
         if ([type isEqualToString:@"Workout"]) {
             if (self.hasListeners) {

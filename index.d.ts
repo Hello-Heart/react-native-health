@@ -934,6 +934,7 @@ declare module 'react-native-health' {
     | 'everyweek'
 
   export interface BackgroundSyncOptions {
+    enabled?:      boolean
     syncInterval?: SyncInterval
   }
 

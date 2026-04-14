@@ -259,10 +259,19 @@ RCT_EXPORT_METHOD(getAnchoredWorkouts:(NSDictionary *)input callback:(RCTRespons
 
 RCT_EXPORT_METHOD(configureBackgroundSync:(NSDictionary *)input)
 {
-    NSString *interval = [input objectForKey:@"syncInterval"];
-    NSTimeInterval seconds = [RCTAppleHealthKit syncIntervalFromString:interval ?: @""];
-    [[NSUserDefaults standardUserDefaults] setDouble:seconds forKey:@"RNHealth_SyncInterval"];
-    NSLog(@"[HealthKit] Background sync interval set to %.0fs", seconds);
+    BOOL enabled = [input objectForKey:@"enabled"]
+        ? [[input objectForKey:@"enabled"] boolValue]
+        : YES;
+    [[NSUserDefaults standardUserDefaults] setBool:enabled forKey:@"RNHealth_SyncEnabled"];
+
+    if (enabled) {
+        NSString *interval = [input objectForKey:@"syncInterval"];
+        NSTimeInterval seconds = [RCTAppleHealthKit syncIntervalFromString:interval ?: @""];
+        [[NSUserDefaults standardUserDefaults] setDouble:seconds forKey:@"RNHealth_SyncInterval"];
+        NSLog(@"[HealthKit] Background sync enabled, interval %.0fs", seconds);
+    } else {
+        NSLog(@"[HealthKit] Background sync disabled");
+    }
 }
 
 + (NSDate *)startDateFromPeriod:(NSString *)period {
