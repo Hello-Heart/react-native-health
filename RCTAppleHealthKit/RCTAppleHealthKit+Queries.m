@@ -590,6 +590,88 @@
     [self.healthStore executeQuery:query];
 }
 
+- (void)fetchAnchoredSamplesOfType:(HKQuantityType *)quantityType
+                              unit:(HKUnit *)unit
+                         predicate:(NSPredicate *)predicate
+                            anchor:(HKQueryAnchor *)anchor
+                             limit:(NSUInteger)lim
+                        completion:(void (^)(NSDictionary *, NSError *))completion {
+
+    void (^handlerBlock)(HKAnchoredObjectQuery *query,
+                         NSArray<__kindof HKSample *> *sampleObjects,
+                         NSArray<HKDeletedObject *> *deletedObjects,
+                         HKQueryAnchor *newAnchor,
+                         NSError *error);
+
+    handlerBlock = ^(HKAnchoredObjectQuery *query,
+                     NSArray<__kindof HKSample *> *sampleObjects,
+                     NSArray<HKDeletedObject *> *deletedObjects,
+                     HKQueryAnchor *newAnchor,
+                     NSError *error) {
+
+        if (error) {
+            if (completion) { completion(nil, error); }
+            return;
+        }
+
+        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+            NSMutableArray *added   = [NSMutableArray arrayWithCapacity:sampleObjects.count];
+            NSMutableArray *deleted = [NSMutableArray arrayWithCapacity:deletedObjects.count];
+
+            for (HKQuantitySample *sample in sampleObjects) {
+                @try {
+                    double value        = [sample.quantity doubleValueForUnit:unit];
+                    NSString *startDate = [RCTAppleHealthKit buildISO8601StringFromDate:sample.startDate];
+                    NSString *endDate   = [RCTAppleHealthKit buildISO8601StringFromDate:sample.endDate];
+                    NSString *device    = @"";
+                    if (@available(iOS 11.0, *)) {
+                        device = [[sample sourceRevision] productType] ?: @"";
+                    } else {
+                        device = [[sample device] name] ?: @"iPhone";
+                    }
+                    [added addObject:@{
+                        @"id":         [[sample UUID] UUIDString],
+                        @"value":      @(value),
+                        @"unit":       [unit unitString],
+                        @"startDate":  startDate,
+                        @"endDate":    endDate,
+                        @"sourceName": [[[sample sourceRevision] source] name] ?: @"",
+                        @"sourceId":   [[[sample sourceRevision] source] bundleIdentifier] ?: @"",
+                        @"device":     device,
+                        @"metadata":   sample.metadata ?: @{},
+                    }];
+                } @catch (NSException *e) {
+                    NSLog(@"RNHealth: fetchAnchoredSamplesOfType serialization error: %@", e);
+                }
+            }
+
+            for (HKDeletedObject *obj in deletedObjects) {
+                [deleted addObject:@{ @"id": [[obj UUID] UUIDString] }];
+            }
+
+            NSData   *anchorData   = [NSKeyedArchiver archivedDataWithRootObject:newAnchor];
+            NSString *anchorString = [anchorData base64EncodedStringWithOptions:0];
+
+            if (completion) {
+                completion(@{
+                    @"anchor":  anchorString,
+                    @"added":   added,
+                    @"deleted": deleted,
+                }, nil);
+            }
+        });
+    };
+
+    HKAnchoredObjectQuery *query = [[HKAnchoredObjectQuery alloc]
+        initWithType:quantityType
+           predicate:predicate
+              anchor:anchor
+               limit:lim
+      resultsHandler:handlerBlock];
+
+    [self.healthStore executeQuery:query];
+}
+
 - (void)fetchSleepCategorySamplesForPredicate:(NSPredicate *)predicate
                                         limit:(NSUInteger)lim
                                     ascending:(BOOL)asc
