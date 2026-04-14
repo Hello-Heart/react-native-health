@@ -1,6 +1,7 @@
-import { Activities } from './Activities'
-import { Observers } from './Observers'
+import { Activities }  from './Activities'
+import { Observers }   from './Observers'
+import { Periods }     from './Periods'
 import { Permissions } from './Permissions'
-import { Units } from './Units'
+import { Units }       from './Units'
 
-export { Activities, Observers, Permissions, Units }
+export { Activities, Observers, Periods, Permissions, Units }
