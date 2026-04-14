@@ -271,6 +271,61 @@ NSString * const kMetadataKey = @"metadata";
 }
 
 
++ (HKUnit *)defaultHKUnitForType:(NSString *)type {
+    if ([@[@"HeartRate", @"RestingHeartRate", @"WalkingHeartRateAverage"] containsObject:type]) {
+        return [HKUnit unitFromString:@"count/min"];
+    }
+    if ([@[@"HeartRateVariabilitySDNN"] containsObject:type]) {
+        return [HKUnit secondUnitWithMetricPrefix:HKMetricPrefixMilli];
+    }
+    if ([@[@"ActiveEnergyBurned", @"BasalEnergyBurned"] containsObject:type]) {
+        return [HKUnit kilocalorieUnit];
+    }
+    if ([@[@"Running", @"Walking", @"Cycling", @"Swimming"] containsObject:type]) {
+        return [HKUnit meterUnit];
+    }
+    if ([@[@"Vo2Max"] containsObject:type]) {
+        return [HKUnit unitFromString:@"ml/(kg*min)"];
+    }
+    if ([@[@"StepCount", @"FlightsClimbed", @"PushCount"] containsObject:type]) {
+        return [HKUnit countUnit];
+    }
+    if ([@[@"BodyMass", @"LeanBodyMass"] containsObject:type]) {
+        return [HKUnit gramUnitWithMetricPrefix:HKMetricPrefixKilo];
+    }
+    if ([@[@"Height"] containsObject:type]) {
+        return [HKUnit meterUnit];
+    }
+    if ([@[@"BodyTemperature", @"BasalBodyTemperature"] containsObject:type]) {
+        return [HKUnit degreeCelsiusUnit];
+    }
+    if ([@[@"BloodGlucose"] containsObject:type]) {
+        return [HKUnit unitFromString:@"mg/dL"];
+    }
+    if ([@[@"BloodPressureSystolic", @"BloodPressureDiastolic"] containsObject:type]) {
+        return [HKUnit millimeterOfMercuryUnit];
+    }
+    if ([@[@"RespiratoryRate"] containsObject:type]) {
+        return [HKUnit unitFromString:@"count/min"];
+    }
+    if ([@[@"OxygenSaturation", @"BodyFatPercentage"] containsObject:type]) {
+        return [HKUnit percentUnit];
+    }
+    if ([@[@"DietaryWater"] containsObject:type]) {
+        return [HKUnit literUnit];
+    }
+    if ([@[@"DietaryEnergyConsumed", @"DietaryProtein", @"DietaryFatTotal",
+            @"DietaryCarbohydrates", @"DietaryFiber", @"DietarySodium",
+            @"DietaryCalcium", @"DietaryIron", @"DietaryPotassium",
+            @"DietaryVitaminC", @"DietaryVitaminD"] containsObject:type]) {
+        if ([@[@"DietaryEnergyConsumed"] containsObject:type]) {
+            return [HKUnit kilocalorieUnit];
+        }
+        return [HKUnit gramUnit];
+    }
+    return [HKUnit countUnit];
+}
+
 + (HKUnit *)hkUnitFromOptions:(NSDictionary *)options key:(NSString *)key withDefault:(HKUnit *)defaultValue {
     NSString *unitString = [options objectForKey:key];
     HKUnit *theUnit;
