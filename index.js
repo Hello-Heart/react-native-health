@@ -66,6 +66,7 @@ export const HealthKit =
             })
           })
         },
+        getStepCountSamples: AppleHealthKit.getStepCountSamples,
         getDailyStepCountSamples: AppleHealthKit.getDailyStepCountSamples,
         saveSteps: AppleHealthKit.saveSteps,
         saveWalkingRunningDistance: AppleHealthKit.saveWalkingRunningDistance,

@@ -372,6 +372,12 @@ RCT_EXPORT_METHOD(setObserver:(NSDictionary *)input)
     [self fitness_setObserver:input];
 }
 
+RCT_EXPORT_METHOD(getStepCountSamples:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback)
+{
+    [self _initializeHealthStore];
+    [self fitness_getStepCountSamples:input callback:callback];
+}
+
 RCT_EXPORT_METHOD(getDailyStepCountSamples:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback)
 {
     [self _initializeHealthStore];
