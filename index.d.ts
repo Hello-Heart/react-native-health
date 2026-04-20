@@ -912,7 +912,7 @@ declare module 'react-native-health' {
 
   export interface AnchoredQueryResults {
     anchor: string
-    data: Array<HKWorkoutQueriedSampleType>
+    data: Array<HKWorkoutQueriedSampleType>  // All workouts (backward compatible)
   }
 
   export interface WorkoutRouteQueryResults {

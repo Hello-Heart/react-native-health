@@ -581,8 +581,7 @@
                 NSString *anchorString = [anchorData base64EncodedStringWithOptions:0];
                 completion(@{
                             @"anchor": anchorString,
-                            @"added": data,
-                            @"deleted": deletedObjects ?: @[],
+                            @"data": data,
                         }, error);
             });
         }
