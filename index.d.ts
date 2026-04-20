@@ -954,12 +954,19 @@ declare module 'react-native-health' {
   }
 
   export interface DeltaQueryOptions {
+    /** @required Unique identifier for the health data type (e.g., 'HeartRate', 'StepCount', 'Workout') */
     type:       HealthObserver
+    /** Previous query result's anchor string to fetch only changes since last query */
     anchor?:    string
+    /** Unit for quantity types */
     unit?:      HealthUnit
+    /** ISO 8601 start date string */
     startDate?: string
+    /** ISO 8601 end date string */
     endDate?:   string
+    /** Preset period like 'today' or 'last7days' */
     period?:    HealthPeriod
+    /** Maximum number of results to return */
     limit?:     number
   }
 

@@ -99,12 +99,48 @@ emitter.addListener('healthKit:HeartRate:delta', ({ added, deleted, anchor }) =>
 
 ## Options
 
-| Option | Type | Description |
-|---|---|---|
-| `type` | `HealthObserver` | HealthKit data type (e.g. `'HeartRate'`) |
-| `unit` | `HealthUnit` | Unit for values. Falls back to type default if omitted |
-| `anchor` | `string` | Opaque cursor from previous call. If omitted, fetches all matching |
-| `startDate` | `string` | ISO 8601. Lower bound for the query window |
-| `endDate` | `string` | ISO 8601. Upper bound. Defaults to now |
-| `period` | `HealthPeriod` | Preset window (`last7days`, `last3months`, etc.) Used if `startDate` is omitted |
-| `limit` | `number` | Max samples to return. Default: no limit |
+| Option | Type | Required | Description |
+|---|---|---|---|
+| `type` | `HealthObserver` | **YES** | HealthKit data type (e.g. `'HeartRate'`). Missing type will return error |
+| `unit` | `HealthUnit` | No | Unit for values. Falls back to type default if omitted |
+| `anchor` | `string` | No | Opaque cursor from previous call. If omitted, fetches all matching |
+| `startDate` | `string` | No | ISO 8601. Lower bound for the query window |
+| `endDate` | `string` | No | ISO 8601. Upper bound. Defaults to now |
+| `period` | `HealthPeriod` | No | Preset window (`last7days`, `last3months`, etc.) Used if `startDate` is omitted |
+| `limit` | `number` | No | Max samples to return. Default: no limit |
+
+## Validation
+
+The `type` field is **required**. If omitted or empty, both methods return an error:
+
+```javascript
+// ❌ WRONG - missing type
+AppleHealthKit.getDeltaSamples({ anchor: lastAnchor }, (err) => {
+  // err.message: "getDeltaSamples: missing required 'type' field"
+})
+
+// ✅ CORRECT
+AppleHealthKit.getDeltaSamples({ type: 'HeartRate', anchor: lastAnchor }, (err, result) => {
+  // Works correctly
+})
+```
+
+For batch queries, each request must have a type:
+
+```javascript
+// ❌ WRONG - missing type in one request
+AppleHealthKit.getDeltaSamplesForPermissions([
+  { type: 'HeartRate', unit: 'bpm' },
+  { anchor: 'abc' },  // Missing type!
+], (err) => {
+  // err.message: "getDeltaSamplesForPermissions: missing required \"type\" field in request"
+})
+
+// ✅ CORRECT
+AppleHealthKit.getDeltaSamplesForPermissions([
+  { type: 'HeartRate', unit: 'bpm' },
+  { type: 'StepCount', unit: 'count' },
+], (err, results) => {
+  // Works correctly
+})
+```

@@ -313,6 +313,12 @@ RCT_EXPORT_METHOD(getDeltaSamples:(NSDictionary *)input callback:(RCTResponseSen
 
     NSString *type = [RCTAppleHealthKit stringFromOptions:input key:@"type" withDefault:@""];
 
+    // Validate required type field
+    if (!type || [type length] == 0) {
+        callback(@[RCTMakeError(@"getDeltaSamples: missing required 'type' field", nil, @{ @"expectedTypes": @[@"HeartRate", @"StepCount", @"ActiveEnergyBurned", @"Workout"] })]);
+        return;
+    }
+
     // Workout: delegate to existing anchored workout method unchanged
     if ([type isEqualToString:@"Workout"]) {
         [self workout_getAnchoredQuery:input callback:callback];
