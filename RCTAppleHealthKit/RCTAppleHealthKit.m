@@ -327,7 +327,15 @@ RCT_EXPORT_METHOD(getDeltaSamples:(NSDictionary *)input callback:(RCTResponseSen
 
     HKQuantityType *quantityType = (HKQuantityType *)[RCTAppleHealthKit quantityTypeFromName:type];
     if (!quantityType || [quantityType isEqual:[HKObjectType workoutType]]) {
-        callback(@[RCTMakeError(@"getDeltaSamples: unsupported type", nil, @{ @"type": type })]);
+        NSArray *supportedTypes = @[@"HeartRate", @"StepCount", @"ActiveEnergyBurned", @"BasalEnergyBurned",
+                                   @"Cycling", @"HeartRateVariabilitySDNN", @"RestingHeartRate", @"Running",
+                                   @"StairClimbing", @"Swimming", @"Vo2Max", @"Walking", @"InsulinDelivery",
+                                   @"DietaryCholesterol"];
+        callback(@[RCTMakeError(@"getDeltaSamples: unsupported or clinical type", nil, @{
+            @"type": type,
+            @"supportedTypes": supportedTypes,
+            @"hint": @"For clinical types (AllergyRecord, ConditionRecord, etc.), ensure you have proper permissions"
+        })]);
         return;
     }
 

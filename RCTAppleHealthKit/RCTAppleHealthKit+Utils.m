@@ -193,9 +193,12 @@ NSString * const kMetadataKey = @"metadata";
 }
 
 /*!
-    Convert Human Readable name for a HealthKit activity into a HKObjectType format
+    Convert Human Readable name for a HealthKit data type into a HKObjectType format
 
-    @param type The human readable format
+    @param type The human readable format (e.g., 'HeartRate', 'StepCount', 'Workout')
+    @return HKSampleType for standard quantity types, or nil if type is unsupported or clinical.
+            Note: Clinical types (AllergyRecord, ConditionRecord, etc.) are NOT supported
+            by this method and must be handled via clinicalTypeFromName instead.
  */
 + (HKSampleType *)quantityTypeFromName:(NSString *)type {
     if ([type isEqual:@"ActiveEnergyBurned"]){

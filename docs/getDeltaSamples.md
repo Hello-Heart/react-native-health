@@ -144,3 +144,25 @@ AppleHealthKit.getDeltaSamplesForPermissions([
   // Works correctly
 })
 ```
+
+## Unsupported Type Errors
+
+If you pass an unsupported type, you'll get a helpful error with the list of supported types:
+
+```javascript
+AppleHealthKit.getDeltaSamples(
+  { type: 'InvalidType', unit: 'bpm' },
+  (err) => {
+    // err.message: "getDeltaSamples: unsupported or clinical type"
+    // err.supportedTypes: ['HeartRate', 'StepCount', ..., 'Workout']
+    // err.hint: "For clinical types (AllergyRecord, ConditionRecord, etc.), ensure you have proper permissions"
+  }
+)
+```
+
+Supported standard types:
+- `HeartRate`, `RestingHeartRate`, `HeartRateVariabilitySDNN`
+- `StepCount`, `Walking`, `Running`, `Cycling`, `StairClimbing`, `Swimming`
+- `ActiveEnergyBurned`, `BasalEnergyBurned`
+- `Vo2Max`, `InsulinDelivery`, `DietaryCholesterol`
+- `Workout` (special type)
