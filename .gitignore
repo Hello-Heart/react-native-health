@@ -45,5 +45,8 @@ buck-out/
 android/app/libs
 android/keystores/debug.keystore
 
+# Git worktrees
+.worktrees/
+
 # Gitbook
 .github
