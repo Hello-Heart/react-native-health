@@ -254,13 +254,15 @@ RCT_EXPORT_METHOD(getAnchoredWorkouts:(NSDictionary *)input callback:(RCTRespons
     if ([interval isEqualToString:@"every1hour"])   return 3600.0;
     if ([interval isEqualToString:@"every6hours"])  return 21600.0;
     if ([interval isEqualToString:@"every12hours"]) return 43200.0;
+    if ([interval isEqualToString:@"every24hours"]) return 86400.0;
     if ([interval isEqualToString:@"every48hours"]) return 172800.0;
     if ([interval isEqualToString:@"everyweek"])    return 604800.0;
-    return 86400.0; // default: every24hours
+    return 86400.0;
 }
 
 RCT_EXPORT_METHOD(configureBackgroundSync:(NSDictionary *)input)
 {
+    [self _initializeHealthStore];
     BOOL enabled = [input objectForKey:@"enabled"]
         ? [[input objectForKey:@"enabled"] boolValue]
         : YES;
@@ -299,7 +301,7 @@ RCT_EXPORT_METHOD(configureBackgroundSync:(NSDictionary *)input)
     if ([period isEqualToString:@"last6months"]) {
         return [cal dateByAddingUnit:NSCalendarUnitMonth value:-6   toDate:now options:0];
     }
-    if ([period isEqualToString:@"lastYear"]) {
+    if ([period isEqualToString:@"lastyear"]) {
         return [cal dateByAddingUnit:NSCalendarUnitYear  value:-1   toDate:now options:0];
     }
     return nil;
@@ -341,6 +343,9 @@ RCT_EXPORT_METHOD(getDeltaSamples:(NSDictionary *)input callback:(RCTResponseSen
     NSString *periodString = [input objectForKey:@"period"];
     if (startDate == nil && periodString.length) {
         startDate = [RCTAppleHealthKit startDateFromPeriod:periodString];
+    }
+    if (startDate == nil) {
+        startDate = [RCTAppleHealthKit startDateFromPeriod:@"last24hours"];
     }
     NSDate *endDate = [RCTAppleHealthKit dateFromOptions:input key:@"endDate" withDefault:[NSDate date]];
 

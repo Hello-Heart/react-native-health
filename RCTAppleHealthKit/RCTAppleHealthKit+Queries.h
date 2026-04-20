@@ -76,6 +76,7 @@
                          predicate:(NSPredicate *)predicate
                          ascending:(BOOL)asc
                              limit:(NSUInteger)lim
+                  includeManuallyAdded:(BOOL)includeManuallyAdded
                         completion:(void (^)(NSArray *, NSError *))completion;
 
 - (void)fetchCorrelationSamplesOfType:(HKQuantityType *)quantityType

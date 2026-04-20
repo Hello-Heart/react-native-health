@@ -24,11 +24,8 @@
     
     NSSortDescriptor *timeSortDescriptor = [[NSSortDescriptor alloc] initWithKey:HKSampleSortIdentifierEndDate
                                                                        ascending:asc];
-    
-    // declare the block
+
     void (^handlerBlock)(HKSampleQuery *query, NSArray *results, NSError *error);
-    
-    // create and assign the block
     handlerBlock = ^(HKSampleQuery *query, NSArray *results, NSError *error) {
         if (!results) {
             if (completion) {
@@ -72,11 +69,8 @@
                    anchor:(HKQueryAnchor *)anchor
                     limit:(NSUInteger)lim
                completion:(void (^)(NSDictionary *, NSError *))completion {
-    
-    // declare the block
+
     void (^handlerBlock)(HKAnchoredObjectQuery *query, NSArray<__kindof HKSample *> *sampleObjects, NSArray<HKDeletedObject *> *deletedObjects, HKQueryAnchor *newAnchor, NSError *error);
-    
-    // create and assign the block
     handlerBlock = ^(HKAnchoredObjectQuery *query, NSArray<__kindof HKSample *> *sampleObjects, NSArray<HKDeletedObject *> *deletedObjects, HKQueryAnchor *newAnchor, NSError *error) {
         
         if (!sampleObjects || sampleObjects == nil || [sampleObjects count] == 0) {
@@ -134,7 +128,12 @@
                 
                 if(done) {
                     //all batches successfully completed
-                    NSData *anchorData = [NSKeyedArchiver archivedDataWithRootObject:newAnchor];
+                    NSError *archiveError = nil;
+                    NSData *anchorData = [NSKeyedArchiver archivedDataWithRootObject:newAnchor requiringSecureCoding:YES error:&archiveError];
+                    if (archiveError) {
+                        NSLog(@"RNHealth: Failed to archive anchor: %@", archiveError);
+                        return;
+                    }
                     NSString *anchorString = [anchorData base64EncodedStringWithOptions:0];
                     NSString *start = [RCTAppleHealthKit buildISO8601StringFromDate:routeSample.startDate];
                     NSString *end = [RCTAppleHealthKit buildISO8601StringFromDate:routeSample.endDate];
@@ -215,7 +214,6 @@
                       }
 
                       if (completion) {
-                          // If quantity isn't in the database, return nil in the completion block.
                           HKQuantitySample *quantitySample = results.firstObject;
                           HKQuantity *quantity = quantitySample.quantity;
                           NSDate *startDate = quantitySample.startDate;
@@ -232,14 +230,13 @@
                          predicate:(NSPredicate *)predicate
                          ascending:(BOOL)asc
                              limit:(NSUInteger)lim
+                  includeManuallyAdded:(BOOL)includeManuallyAdded
                         completion:(void (^)(NSArray *, NSError *))completion {
 
     NSSortDescriptor *timeSortDescriptor = [[NSSortDescriptor alloc] initWithKey:HKSampleSortIdentifierEndDate
                                                                        ascending:asc];
 
-    // declare the block
     void (^handlerBlock)(HKSampleQuery *query, NSArray *results, NSError *error);
-    // create and assign the block
     handlerBlock = ^(HKSampleQuery *query, NSArray *results, NSError *error) {
         if (!results) {
             if (completion) {
@@ -254,6 +251,9 @@
             dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
 
                 for (HKQuantitySample *sample in results) {
+                    if (!includeManuallyAdded && sample.metadata && [sample.metadata[HKMetadataKeyWasUserEntered] boolValue]) {
+                        continue;
+                    }
                     HKQuantity *quantity = sample.quantity;
                     double value = [quantity doubleValueForUnit:unit];
                     NSString *unitString = [unit unitString];
@@ -571,11 +571,18 @@
                     }
                 }
 
-                NSData *anchorData = [NSKeyedArchiver archivedDataWithRootObject:newAnchor];
+                NSError *archiveError = nil;
+                NSData *anchorData = [NSKeyedArchiver archivedDataWithRootObject:newAnchor requiringSecureCoding:YES error:&archiveError];
+                if (archiveError) {
+                    NSLog(@"RNHealth: Failed to archive anchor: %@", archiveError);
+                    completion(nil, archiveError);
+                    return;
+                }
                 NSString *anchorString = [anchorData base64EncodedStringWithOptions:0];
                 completion(@{
                             @"anchor": anchorString,
-                            @"data": data,
+                            @"added": data,
+                            @"deleted": deletedObjects ?: @[],
                         }, error);
             });
         }
@@ -649,7 +656,15 @@
                 [deleted addObject:@{ @"id": [[obj UUID] UUIDString] }];
             }
 
-            NSData   *anchorData   = [NSKeyedArchiver archivedDataWithRootObject:newAnchor];
+            NSError *archiveError = nil;
+            NSData *anchorData = [NSKeyedArchiver archivedDataWithRootObject:newAnchor requiringSecureCoding:YES error:&archiveError];
+            if (archiveError) {
+                NSLog(@"RNHealth: Failed to archive anchor: %@", archiveError);
+                if (completion) {
+                    completion(nil, archiveError);
+                }
+                return;
+            }
             NSString *anchorString = [anchorData base64EncodedStringWithOptions:0];
 
             if (completion) {
@@ -681,9 +696,7 @@
                                                                        ascending:asc];
 
 
-    // declare the block
     void (^handlerBlock)(HKSampleQuery *query, NSArray *results, NSError *error);
-    // create and assign the block
     handlerBlock = ^(HKSampleQuery *query, NSArray *results, NSError *error) {
         if (!results) {
             if (completion) {
@@ -771,9 +784,7 @@
     NSSortDescriptor *timeSortDescriptor = [[NSSortDescriptor alloc] initWithKey:HKSampleSortIdentifierEndDate
                                                                        ascending:asc];
 
-    // declare the block
     void (^handlerBlock)(HKSampleQuery *query, NSArray *results, NSError *error);
-    // create and assign the block
     handlerBlock = ^(HKSampleQuery *query, NSArray *results, NSError *error) {
         if (!results) {
             if (completion) {
@@ -885,14 +896,12 @@
                               HKMetadataKeyWasUserEntered,
                               HKPredicateKeyPathEndDate, startDate,
                               HKPredicateKeyPathStartDate, endDate];
-    // Create the query
     HKStatisticsCollectionQuery *query = [[HKStatisticsCollectionQuery alloc] initWithQuantityType:quantityType
                                                                            quantitySamplePredicate:predicate
                                                                                            options:HKStatisticsOptionCumulativeSum
                                                                                         anchorDate:anchorDate
                                                                                 intervalComponents:interval];
 
-    // Set the results handler
     query.initialResultsHandler = ^(HKStatisticsCollectionQuery *query, HKStatisticsCollection *results, NSError *error) {
         if (error) {
             // Perform proper error handling here
@@ -942,14 +951,12 @@
                               HKMetadataKeyWasUserEntered,
                               HKPredicateKeyPathEndDate, startDate,
                               HKPredicateKeyPathStartDate, endDate];
-    // Create the query
     HKStatisticsCollectionQuery *query = [[HKStatisticsCollectionQuery alloc] initWithQuantityType:quantityType
                                                                            quantitySamplePredicate:predicate
                                                                                            options:HKStatisticsOptionCumulativeSum
                                                                                         anchorDate:anchorDate
                                                                                 intervalComponents:interval];
 
-    // Set the results handler
     query.initialResultsHandler = ^(HKStatisticsCollectionQuery *query, HKStatisticsCollection *results, NSError *error) {
         if (error) {
             // Perform proper error handling here
@@ -1026,14 +1033,12 @@
                                   HKPredicateKeyPathEndDate, startDate,
                                   HKPredicateKeyPathStartDate, endDate];
     }
-    // Create the query
     HKStatisticsCollectionQuery *query = [[HKStatisticsCollectionQuery alloc] initWithQuantityType:quantityType
                                                                            quantitySamplePredicate:predicate
                                                                                            options:HKStatisticsOptionCumulativeSum | HKStatisticsOptionSeparateBySource
                                                                                         anchorDate:anchorDate
                                                                                 intervalComponents:interval];
 
-    // Set the results handler
     query.initialResultsHandler = ^(HKStatisticsCollectionQuery *query, HKStatisticsCollection *results, NSError *error) {
         if (error) {
             // Perform proper error handling here
@@ -1289,8 +1294,17 @@
             return;
         }
 
+        // Category types (SleepAnalysis, MindfulSession) emit :new only
+        if ([type isEqualToString:@"SleepAnalysis"] || [type isEqualToString:@"MindfulSession"]) {
+            if (self.hasListeners) {
+                [self emitEventWithName:newEvent andPayload:@{}];
+            }
+            completionHandler();
+            return;
+        }
+
         HKQuantityType *quantityType = (HKQuantityType *)[RCTAppleHealthKit quantityTypeFromName:type];
-        if (!quantityType || [quantityType isEqual:[HKObjectType workoutType]]) {
+        if (!quantityType) {
             if (self.hasListeners) {
                 [self emitEventWithName:newEvent andPayload:@{}];
             }
@@ -1321,7 +1335,11 @@
         NSString *stored = [[NSUserDefaults standardUserDefaults] stringForKey:anchorKey];
         if (stored.length) {
             NSData *anchorData = [[NSData alloc] initWithBase64EncodedString:stored options:0];
-            storedAnchor = [NSKeyedUnarchiver unarchiveObjectWithData:anchorData];
+            NSError *unarchiveError = nil;
+            storedAnchor = [NSKeyedUnarchiver unarchivedObjectOfClass:[HKQueryAnchor class] fromData:anchorData error:&unarchiveError];
+            if (unarchiveError) {
+                NSLog(@"RNHealth: Failed to unarchive anchor: %@", unarchiveError);
+            }
         }
 
         HKUnit *unit = [RCTAppleHealthKit defaultHKUnitForType:type];

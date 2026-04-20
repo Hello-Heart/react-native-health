@@ -99,6 +99,7 @@
     BOOL ascending = [RCTAppleHealthKit boolFromOptions:input key:@"ascending" withDefault:false];
     NSDate *startDate = [RCTAppleHealthKit dateFromOptions:input key:@"startDate" withDefault:nil];
     NSDate *endDate = [RCTAppleHealthKit dateFromOptions:input key:@"endDate" withDefault:[NSDate date]];
+    BOOL includeManuallyAdded = [RCTAppleHealthKit boolFromOptions:input key:@"includeManuallyAdded" withDefault:true];
 
     if (startDate == nil) {
         callback(@[RCTMakeError(@"startDate is required in options", nil, nil)]);
@@ -113,6 +114,7 @@
                            predicate:predicate
                            ascending:ascending
                                limit:limit
+                  includeManuallyAdded:includeManuallyAdded
                           completion:^(NSArray *results, NSError *error) {
         if (results) {
             callback(@[[NSNull null], results]);
@@ -211,7 +213,7 @@
 
 
 
-- (void)fitness_initializeStepEventObserver:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback
+- (void)fitness_initializeStepEventObserver:(NSDictionary *)input hasListeners:(bool)hasListeners callback:(RCTResponseSenderBlock)callback
 {
     HKSampleType *sampleType =
     [HKObjectType quantityTypeForIdentifier:HKQuantityTypeIdentifierStepCount];

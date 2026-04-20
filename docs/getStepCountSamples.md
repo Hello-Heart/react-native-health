@@ -33,16 +33,13 @@ Example output, value is in count unit:
 ```json
 [
   {
-    "endDate": "2021-03-22T17:00:00.000-0300",
-    "startDate": "2021-03-22T16:00:00.000-0300",
+    "id": "5013eca7-4aee-45af-83c1-dbe3696b2e51",
     "value": 1234,
-    "metadata": [
-      {
-        "sourceId": "com.apple.Health",
-        "sourceName": "Health",
-        "quantity": 1234
-      }
-    ]
+    "startDate": "2021-03-22T16:00:00.000-0300",
+    "endDate": "2021-03-22T17:00:00.000-0300",
+    "metadata": {
+      "HKWasUserEntered": false
+    }
   }
 ]
 ```

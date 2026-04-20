@@ -49,6 +49,11 @@ export const HealthKit =
           let settled = false
 
           requests.forEach(function(options) {
+            if (!options.type) {
+              settled = true
+              callback(new Error('getDeltaSamplesForPermissions: missing required "type" field in request'), null)
+              return
+            }
             const type = options.type
             AppleHealthKit.getDeltaSamples(options, function(err, result) {
               if (settled) return

@@ -226,9 +226,11 @@ NSString * const kMetadataKey = @"metadata";
         return [HKObjectType workoutType];
     } else if ([type isEqual:@"DietaryCholesterol"]) {
         return [HKObjectType quantityTypeForIdentifier:HKQuantityTypeIdentifierDietaryCholesterol];
+    } else if ([type isEqual:@"InsulinDelivery"]) {
+        return [HKObjectType quantityTypeForIdentifier:HKQuantityTypeIdentifierInsulinDelivery];
     }
 
-    return [HKObjectType workoutType];
+    return nil;
 }
 
 + (HKSampleType *)clinicalTypeFromName:(NSString *)type {
@@ -263,7 +265,11 @@ NSString * const kMetadataKey = @"metadata";
     NSString *anchorString = [options objectForKey:@"anchor"];
     if (!anchorString.length) return nil;
     NSData* anchorData = [[NSData alloc] initWithBase64EncodedString:anchorString options:0];
-    HKQueryAnchor *anchor = [NSKeyedUnarchiver unarchiveObjectWithData:anchorData];
+    NSError *unarchiveError = nil;
+    HKQueryAnchor *anchor = [NSKeyedUnarchiver unarchivedObjectOfClass:[HKQueryAnchor class] fromData:anchorData error:&unarchiveError];
+    if (unarchiveError) {
+        NSLog(@"RNHealth: Failed to unarchive anchor: %@", unarchiveError);
+    }
     if(anchor == nil){
         return nil;
     }

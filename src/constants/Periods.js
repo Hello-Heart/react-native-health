@@ -11,5 +11,5 @@ export const Periods = {
   last30Days:   'last30days',
   last3Months:  'last3months',
   last6Months:  'last6months',
-  lastYear:     'lastYear',
+  lastYear:     'lastyear',
 }

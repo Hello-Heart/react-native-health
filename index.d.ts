@@ -927,7 +927,7 @@ declare module 'react-native-health' {
     | 'last30days'
     | 'last3months'
     | 'last6months'
-    | 'lastYear'
+    | 'lastyear'
 
   /** Minimum time between background delta fetches. Default: 'every24hours'. */
   export type SyncInterval =
@@ -964,19 +964,26 @@ declare module 'react-native-health' {
   }
 
   export enum HealthObserver {
+    ActiveEnergyBurned = 'ActiveEnergyBurned',
     AllergyRecord = 'AllergyRecord',
+    BasalEnergyBurned = 'BasalEnergyBurned',
     ConditionRecord = 'ConditionRecord',
     CoverageRecord = 'CoverageRecord',
     Cycling = 'Cycling',
     HeartRate = 'HeartRate',
+    HeartRateVariabilitySDNN = 'HeartRateVariabilitySDNN',
     ImmunizationRecord = 'ImmunizationRecord',
+    InsulinDelivery = 'InsulinDelivery',
     LabResultRecord = 'LabResultRecord',
     MedicationRecord = 'MedicationRecord',
     ProcedureRecord = 'ProcedureRecord',
     RestingHeartRate = 'RestingHeartRate',
     Running = 'Running',
     StairClimbing = 'StairClimbing',
+    StepCount = 'StepCount',
+    Swimming = 'Swimming',
     VitalSignRecord = 'VitalSignRecord',
+    Vo2Max = 'Vo2Max',
     Walking = 'Walking',
     Workout = 'Workout',
   }

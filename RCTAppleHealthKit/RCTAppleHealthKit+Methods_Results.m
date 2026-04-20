@@ -34,6 +34,7 @@
                            predicate:predicate
                            ascending:ascending
                                limit:limit
+                  includeManuallyAdded:YES
                           completion:^(NSArray *results, NSError *error) {
         if(results){
             callback(@[[NSNull null], results]);
@@ -68,6 +69,7 @@
                            predicate:predicate
                            ascending:ascending
                                limit:limit
+                  includeManuallyAdded:YES
                           completion:^(NSArray *results, NSError *error) {
         if(results){
             callback(@[[NSNull null], results]);
@@ -99,6 +101,7 @@
                            predicate:predicate
                            ascending:ascending
                                limit:limit
+                  includeManuallyAdded:YES
                           completion:^(NSArray *results, NSError *error) {
         if(results){
             callback(@[[NSNull null], results]);
