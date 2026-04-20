@@ -540,12 +540,9 @@
 
                         NSString* device = @"";
                         if (@available(iOS 11.0, *)) {
-                            device = [[sample sourceRevision] productType];
+                            device = [[sample sourceRevision] productType] ?: @"";
                         } else {
-                            device = [[sample device] name];
-                            if (!device) {
-                                device = @"iPhone";
-                            }
+                            device = [[sample device] name] ?: @"iPhone";
                         }
 
                         NSDictionary *elem = @{
