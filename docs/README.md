@@ -67,6 +67,7 @@
 
 - [getDailyStepCountSamples](getDailyStepCountSamples.md)
 - [getStepCount](getStepCount.md)
+- [getStepCountSamples](getStepCountSamples.md)
 - [getSamples](getSamples.md)
 - [getDailyDistanceWalkingRunningSamples](getDailyDistanceWalkingRunningSamples.md)
 - [getDistanceWalkingRunning](getDistanceWalkingRunning.md)
