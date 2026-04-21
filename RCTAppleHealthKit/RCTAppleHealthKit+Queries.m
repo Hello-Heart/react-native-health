@@ -619,6 +619,7 @@
         dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
             NSMutableArray *added   = [NSMutableArray arrayWithCapacity:sampleObjects.count];
             NSMutableArray *deleted = [NSMutableArray arrayWithCapacity:deletedObjects.count];
+            NSUInteger serializationErrors = 0;
 
             for (HKQuantitySample *sample in sampleObjects) {
                 @try {
@@ -644,6 +645,7 @@
                     }];
                 } @catch (NSException *e) {
                     NSLog(@"RNHealth: fetchAnchoredSamplesOfType serialization error: %@", e);
+                    serializationErrors++;
                 }
             }
 
@@ -662,12 +664,20 @@
             }
             NSString *anchorString = [anchorData base64EncodedStringWithOptions:0];
 
+            NSMutableDictionary *result = [@{
+                @"anchor":  anchorString,
+                @"added":   added,
+                @"deleted": deleted,
+            } mutableCopy];
+
+            // Signal partial failure: if samples failed serialization, include error count
+            // so JS side knows the batch was incomplete
+            if (serializationErrors > 0) {
+                result[@"serializationErrors"] = @(serializationErrors);
+            }
+
             if (completion) {
-                completion(@{
-                    @"anchor":  anchorString,
-                    @"added":   added,
-                    @"deleted": deleted,
-                }, nil);
+                completion(result, nil);
             }
         });
     };
