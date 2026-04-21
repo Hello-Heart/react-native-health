@@ -600,6 +600,7 @@
                          predicate:(NSPredicate *)predicate
                             anchor:(HKQueryAnchor *)anchor
                              limit:(NSUInteger)lim
+                includeManuallyAdded:(BOOL)includeManuallyAdded
                         completion:(void (^)(NSDictionary *, NSError *))completion {
 
     void (^handlerBlock)(HKAnchoredObjectQuery *query,
@@ -625,6 +626,10 @@
             NSUInteger serializationErrors = 0;
 
             for (HKQuantitySample *sample in sampleObjects) {
+                // Skip user-entered samples if includeManuallyAdded is false
+                if (!includeManuallyAdded && sample.metadata && [sample.metadata[HKMetadataKeyWasUserEntered] boolValue]) {
+                    continue;
+                }
                 @try {
                     double value        = [sample.quantity doubleValueForUnit:unit];
                     NSString *startDate = [RCTAppleHealthKit buildISO8601StringFromDate:sample.startDate];
@@ -1261,6 +1266,7 @@
                                    predicate:nil
                                       anchor:nil
                                        limit:0
+                          includeManuallyAdded:YES
                                   completion:^(NSDictionary *results, NSError *error) {
                 NSString *seedAnchor = results[@"anchor"];
                 if (seedAnchor) {
@@ -1365,6 +1371,7 @@
                                predicate:nil
                                   anchor:storedAnchor
                                    limit:HKObjectQueryNoLimit
+                      includeManuallyAdded:YES
                               completion:^(NSDictionary *results, NSError *fetchError) {
 
             // Always call completionHandler — HealthKit stops background delivery if omitted

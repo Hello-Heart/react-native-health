@@ -353,6 +353,7 @@ RCT_EXPORT_METHOD(getDeltaSamples:(NSDictionary *)input callback:(RCTResponseSen
 
     HKQueryAnchor *anchor = [RCTAppleHealthKit hkAnchorFromOptions:input];
     NSUInteger limit      = [RCTAppleHealthKit uintFromOptions:input key:@"limit" withDefault:HKObjectQueryNoLimit];
+    BOOL includeManuallyAdded = [RCTAppleHealthKit boolFromOptions:input key:@"includeManuallyAdded" withDefault:YES];
 
     // Date range: explicit startDate wins; period string is the fallback.
     // For anchored queries with no explicit date range, startDate stays nil to fetch true delta.
@@ -382,6 +383,7 @@ RCT_EXPORT_METHOD(getDeltaSamples:(NSDictionary *)input callback:(RCTResponseSen
                            predicate:predicate
                               anchor:anchor
                                limit:limit
+                  includeManuallyAdded:includeManuallyAdded
                           completion:^(NSDictionary *results, NSError *error) {
         if (error) {
             callback(@[RCTMakeError(@"getDeltaSamples error", error, nil)]);
