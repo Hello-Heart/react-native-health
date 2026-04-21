@@ -271,15 +271,14 @@
                             @"endDate" : endDateString,
                     }];
 
-                    HKDevice *device = [sample device];
-                    if (device != nil) {
-                        elem[@"device"] = @{
-                            @"name"            : [device name] ?: [NSNull null],
-                            @"model"           : [device model] ?: [NSNull null],
-                            @"hardwareVersion" : [device hardwareVersion] ?: [NSNull null],
-                            @"softwareVersion" : [device softwareVersion] ?: [NSNull null],
-                        };
+                    NSString *deviceStr = @"";
+                    if (@available(iOS 11.0, *)) {
+                        deviceStr = [[sample sourceRevision] productType] ?: @"";
+                    } else {
+                        HKDevice *device = [sample device];
+                        deviceStr = [device name] ?: @"iPhone";
                     }
+                    elem[@"device"] = deviceStr;
 
                     NSDictionary *metadata = [sample metadata];
                     if (metadata) {
