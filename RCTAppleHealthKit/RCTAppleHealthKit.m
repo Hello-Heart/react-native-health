@@ -352,13 +352,17 @@ RCT_EXPORT_METHOD(getDeltaSamples:(NSDictionary *)input callback:(RCTResponseSen
     HKQueryAnchor *anchor = [RCTAppleHealthKit hkAnchorFromOptions:input];
     NSUInteger limit      = [RCTAppleHealthKit uintFromOptions:input key:@"limit" withDefault:HKObjectQueryNoLimit];
 
-    // Date range: explicit startDate wins; period string is the fallback
+    // Date range: explicit startDate wins; period string is the fallback.
+    // For anchored queries with no explicit date range, startDate stays nil to fetch true delta.
     NSDate *startDate = [RCTAppleHealthKit dateFromOptions:input key:@"startDate" withDefault:nil];
     NSString *periodString = [input objectForKey:@"period"];
     if (startDate == nil && periodString.length) {
         startDate = [RCTAppleHealthKit startDateFromPeriod:periodString];
     }
-    if (startDate == nil) {
+    // Only default to last24hours if not using anchor. Anchored queries with no explicit
+    // date range fetch true delta (all changes since anchor). Non-anchored queries default
+    // to last24hours for backwards compatibility.
+    if (startDate == nil && anchor == nil) {
         startDate = [RCTAppleHealthKit startDateFromPeriod:@"last24hours"];
     }
     NSDate *endDate = [RCTAppleHealthKit dateFromOptions:input key:@"endDate" withDefault:[NSDate date]];

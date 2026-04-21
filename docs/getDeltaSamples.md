@@ -6,10 +6,11 @@ Fetch only what changed in HealthKit since your last query — added and deleted
 
 | Options | Behaviour |
 |---|---|
-| `anchor` | Delta since last sync |
-| `startDate` / `endDate` | All samples in explicit window |
+| `anchor` | Delta since last sync (no date filtering) |
+| `anchor` + `period` / `startDate` | Delta bounded by period or date window |
 | `period: 'last3months'` | All samples in last N period |
-| `anchor` + `period` | Delta bounded by period window |
+| `startDate` / `endDate` | All samples in explicit window |
+| (none) | All samples in last 24 hours (default when not anchored) |
 
 ## Result shape
 
