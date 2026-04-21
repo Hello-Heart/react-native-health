@@ -213,7 +213,7 @@
 
 
 
-- (void)fitness_initializeStepEventObserver:(NSDictionary *)input hasListeners:(bool)hasListeners callback:(RCTResponseSenderBlock)callback
+- (void)fitness_initializeStepEventObserver:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback
 {
     HKSampleType *sampleType =
     [HKObjectType quantityTypeForIdentifier:HKQuantityTypeIdentifierStepCount];
