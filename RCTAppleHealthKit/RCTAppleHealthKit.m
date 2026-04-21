@@ -367,7 +367,13 @@ RCT_EXPORT_METHOD(getDeltaSamples:(NSDictionary *)input callback:(RCTResponseSen
     }
     NSDate *endDate = [RCTAppleHealthKit dateFromOptions:input key:@"endDate" withDefault:[NSDate date]];
 
-    NSPredicate *predicate = [RCTAppleHealthKit predicateForAnchoredQueries:anchor startDate:startDate endDate:endDate];
+    // Date predicate only applies to non-anchored queries. For anchored queries, HealthKit
+    // manages the window automatically from the anchor. Applying a date predicate to anchored
+    // queries silently drops samples between anchor and startDate, breaking incremental sync.
+    NSPredicate *predicate = nil;
+    if (anchor == nil) {
+        predicate = [RCTAppleHealthKit predicateForAnchoredQueries:anchor startDate:startDate endDate:endDate];
+    }
 
     [self fetchAnchoredSamplesOfType:quantityType
                                 unit:unit
