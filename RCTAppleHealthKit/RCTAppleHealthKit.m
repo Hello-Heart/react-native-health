@@ -263,9 +263,11 @@ RCT_EXPORT_METHOD(getAnchoredWorkouts:(NSDictionary *)input callback:(RCTRespons
 RCT_EXPORT_METHOD(configureBackgroundSync:(NSDictionary *)input)
 {
     [self _initializeHealthStore];
+    // Default to NO (opt-in) to match observer behavior: "Defaults to disabled if the key
+    // was never written". Caller must explicitly pass enabled: true to enable background sync.
     BOOL enabled = [input objectForKey:@"enabled"]
         ? [[input objectForKey:@"enabled"] boolValue]
-        : YES;
+        : NO;
     [[NSUserDefaults standardUserDefaults] setBool:enabled forKey:@"RNHealth_SyncEnabled"];
 
     // Always persist syncInterval so it survives enable/disable cycles.
