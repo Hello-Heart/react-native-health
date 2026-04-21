@@ -320,16 +320,17 @@ NSString * const kMetadataKey = @"metadata";
     if ([@[@"OxygenSaturation", @"BodyFatPercentage"] containsObject:type]) {
         return [HKUnit percentUnit];
     }
+    // DietaryWater uses literUnit; not included in dietary array below
     if ([@[@"DietaryWater"] containsObject:type]) {
         return [HKUnit literUnit];
     }
-    if ([@[@"DietaryEnergyConsumed", @"DietaryProtein", @"DietaryFatTotal",
+    if ([type isEqual:@"DietaryEnergyConsumed"]) {
+        return [HKUnit kilocalorieUnit];
+    }
+    if ([@[@"DietaryProtein", @"DietaryFatTotal",
             @"DietaryCarbohydrates", @"DietaryFiber", @"DietarySodium",
             @"DietaryCalcium", @"DietaryIron", @"DietaryPotassium",
             @"DietaryVitaminC", @"DietaryVitaminD"] containsObject:type]) {
-        if ([@[@"DietaryEnergyConsumed"] containsObject:type]) {
-            return [HKUnit kilocalorieUnit];
-        }
         return [HKUnit gramUnit];
     }
     return [HKUnit countUnit];
