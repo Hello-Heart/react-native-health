@@ -1250,17 +1250,157 @@
     NSString *setupSuccessEvent = [NSString stringWithFormat:@"healthKit:%@:setup:success", type];
     NSString *setupFailureEvent = [NSString stringWithFormat:@"healthKit:%@:setup:failure", type];
 
-    // --- Anchor seeding with synchronization ---
-    // Use dispatch_group_t to ensure observer registration blocks until anchor is seeded.
-    // Without synchronization, observer fires before the limit:0 query completion block writes
-    // the anchor to NSUserDefaults, leaving the observer with nil anchor.
-    dispatch_group_t seedGroup = dispatch_group_create();
-    BOOL hasStoredAnchor = ([[NSUserDefaults standardUserDefaults] stringForKey:anchorKey] != nil);
+    // --- Observer registration block (async continuation) ---
+    // Defined as a block so it can be called from either the seed completion block
+    // or directly — avoids blocking dispatch_group_wait on the calling thread.
+    void (^registerObserver)(void) = ^{
+        HKObserverQuery *query = [[HKObserverQuery alloc]
+            initWithSampleType:sampleType
+                     predicate:nil
+                 updateHandler:^(HKObserverQuery *query,
+                                 HKObserverQueryCompletionHandler completionHandler,
+                                 NSError * _Nullable error) {
+
+            NSLog(@"[HealthKit] Observer fired for %@", type);
+
+            if (error) {
+                completionHandler();
+                if (self.hasListeners) {
+                    [self emitEventWithName:failureEvent andPayload:@{}];
+                }
+                return;
+            }
+
+            // Background sync disabled — app must call configureBackgroundSync({ enabled: true }).
+            // Defaults to disabled if the key was never written (opt-in behaviour).
+            NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+            if ([defaults objectForKey:@"RNHealth_SyncEnabled"] == nil ||
+                ![defaults boolForKey:@"RNHealth_SyncEnabled"]) {
+                completionHandler();
+                return;
+            }
+
+            // Workout: bare :new only (full delta via getDeltaSamples)
+            if ([type isEqualToString:@"Workout"]) {
+                if (self.hasListeners) {
+                    [self emitEventWithName:newEvent andPayload:@{}];
+                }
+                completionHandler();
+                return;
+            }
+
+            // Category types (SleepAnalysis, MindfulSession) emit :new only
+            if ([type isEqualToString:@"SleepAnalysis"] || [type isEqualToString:@"MindfulSession"]) {
+                if (self.hasListeners) {
+                    [self emitEventWithName:newEvent andPayload:@{}];
+                }
+                completionHandler();
+                return;
+            }
+
+            HKQuantityType *quantityType = (HKQuantityType *)[RCTAppleHealthKit quantityTypeFromName:type];
+            if (!quantityType) {
+                if (self.hasListeners) {
+                    [self emitEventWithName:newEvent andPayload:@{}];
+                }
+                completionHandler();
+                return;
+            }
+
+            // Time gate: skip fetch if less than the configured sync interval has elapsed.
+            // Default 86400s (24h) if configureBackgroundSync was never called.
+            NSTimeInterval syncInterval = [[NSUserDefaults standardUserDefaults]
+                doubleForKey:@"RNHealth_SyncInterval"];
+            if (syncInterval <= 0) syncInterval = 86400.0;
+
+            NSString *lastFetchKey = [NSString stringWithFormat:@"RNHealth_LastFetch_%@", type];
+            NSDate   *lastFetch    = [[NSUserDefaults standardUserDefaults] objectForKey:lastFetchKey];
+            NSTimeInterval elapsed = lastFetch ? [[NSDate date] timeIntervalSinceDate:lastFetch]
+                                               : DBL_MAX;
+
+            if (elapsed < syncInterval) {
+                NSLog(@"[HealthKit] Skipping delta fetch for %@ (%.0fs < %.0fs interval)",
+                      type, elapsed, syncInterval);
+                completionHandler(); // must always be called
+                return;
+            }
+
+            // Read stored anchor
+            HKQueryAnchor *storedAnchor = nil;
+            NSString *stored = [[NSUserDefaults standardUserDefaults] stringForKey:anchorKey];
+            if (stored.length) {
+                NSData *anchorData = [[NSData alloc] initWithBase64EncodedString:stored options:0];
+                NSError *unarchiveError = nil;
+                storedAnchor = [NSKeyedUnarchiver unarchivedObjectOfClass:[HKQueryAnchor class] fromData:anchorData error:&unarchiveError];
+                if (unarchiveError) {
+                    NSLog(@"RNHealth: Failed to unarchive anchor: %@", unarchiveError);
+                }
+            }
+
+            HKUnit *unit = [RCTAppleHealthKit defaultHKUnitForType:type];
+
+            [self fetchAnchoredSamplesOfType:quantityType
+                                        unit:unit
+                                   predicate:nil
+                                      anchor:storedAnchor
+                                       limit:HKObjectQueryNoLimit
+                          includeManuallyAdded:YES
+                                  completion:^(NSDictionary *results, NSError *fetchError) {
+
+                // Always call completionHandler — HealthKit stops background delivery if omitted
+                completionHandler();
+
+                if (fetchError || !results) {
+                    NSLog(@"[HealthKit] Delta fetch error for %@: %@", type, fetchError.localizedDescription);
+                    if (self.hasListeners) {
+                        [self emitEventWithName:failureEvent andPayload:@{}];
+                    }
+                    return;
+                }
+
+                // Persist new anchor BEFORE emitting — next delivery starts correctly
+                NSString *newAnchorString = results[@"anchor"];
+                if (newAnchorString.length > 0) {
+                    [[NSUserDefaults standardUserDefaults] setObject:newAnchorString forKey:anchorKey];
+                }
+
+                // Stamp last-fetch time so the time gate works on the next observer fire
+                [[NSUserDefaults standardUserDefaults] setObject:[NSDate date] forKey:lastFetchKey];
+
+                if (self.hasListeners) {
+                    [self emitEventWithName:deltaEvent andPayload:results];
+                    // Keep :new for backwards compatibility
+                    [self emitEventWithName:newEvent andPayload:@{}];
+                }
+            }];
+        }];
+
+        [self.healthStore enableBackgroundDeliveryForType:sampleType
+                                                frequency:HKUpdateFrequencyImmediate
+                                           withCompletion:^(BOOL success, NSError * _Nullable error) {
+            if (error) {
+                NSLog(@"[HealthKit] Background delivery setup error for %@: %@", type, error.localizedDescription);
+                if (self.hasListeners) {
+                    [self emitEventWithName:setupFailureEvent andPayload:@{}];
+                }
+                return;
+            }
+            NSLog(@"[HealthKit] Background delivery enabled for %@", type);
+            [self.healthStore executeQuery:query];
+            if (self.hasListeners) {
+                [self emitEventWithName:setupSuccessEvent andPayload:@{}];
+            }
+        }];
+    };
+
+    // --- Anchor seeding (async, non-blocking) ---
+    // Empty-string check (.length > 0) prevents treating a previously stored empty
+    // anchor as valid — empty string passes != nil but is not a real anchor.
+    BOOL hasStoredAnchor = ([[NSUserDefaults standardUserDefaults] stringForKey:anchorKey].length > 0);
     if (!hasStoredAnchor && ![type isEqualToString:@"Workout"]) {
         HKQuantityType *qt = (HKQuantityType *)[RCTAppleHealthKit quantityTypeFromName:type];
         if (qt && ![qt isEqual:[HKObjectType workoutType]]) {
             HKUnit *unit = [RCTAppleHealthKit defaultHKUnitForType:type];
-            dispatch_group_enter(seedGroup);
             [self fetchAnchoredSamplesOfType:qt
                                         unit:unit
                                    predicate:nil
@@ -1268,156 +1408,21 @@
                                        limit:0
                           includeManuallyAdded:YES
                                   completion:^(NSDictionary *results, NSError *error) {
-                NSString *seedAnchor = results[@"anchor"];
-                if (seedAnchor) {
-                    [[NSUserDefaults standardUserDefaults] setObject:seedAnchor forKey:anchorKey];
-                    NSLog(@"[HealthKit] Anchor seeded for %@", type);
+                if (error) {
+                    NSLog(@"[HealthKit] Anchor seed fetch failed for %@: %@", type, error.localizedDescription);
+                } else {
+                    NSString *seedAnchor = results[@"anchor"];
+                    if (seedAnchor.length > 0) {
+                        [[NSUserDefaults standardUserDefaults] setObject:seedAnchor forKey:anchorKey];
+                        NSLog(@"[HealthKit] Anchor seeded for %@", type);
+                    }
                 }
-                dispatch_group_leave(seedGroup);
+                registerObserver();
             }];
-            // Block until seeding completes before registering observer
-            dispatch_group_wait(seedGroup, DISPATCH_TIME_FOREVER);
+            return; // Observer registered from completion block above
         }
     }
-
-    // --- Observer ---
-    HKObserverQuery *query = [[HKObserverQuery alloc]
-        initWithSampleType:sampleType
-                 predicate:nil
-             updateHandler:^(HKObserverQuery *query,
-                             HKObserverQueryCompletionHandler completionHandler,
-                             NSError * _Nullable error) {
-
-        NSLog(@"[HealthKit] Observer fired for %@", type);
-
-        if (error) {
-            completionHandler();
-            if (self.hasListeners) {
-                [self emitEventWithName:failureEvent andPayload:@{}];
-            }
-            return;
-        }
-
-        // Background sync disabled — app must call configureBackgroundSync({ enabled: true }).
-        // Defaults to disabled if the key was never written (opt-in behaviour).
-        NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
-        if ([defaults objectForKey:@"RNHealth_SyncEnabled"] == nil ||
-            ![defaults boolForKey:@"RNHealth_SyncEnabled"]) {
-            completionHandler();
-            return;
-        }
-
-        // Workout: bare :new only (full delta via getDeltaSamples)
-        if ([type isEqualToString:@"Workout"]) {
-            if (self.hasListeners) {
-                [self emitEventWithName:newEvent andPayload:@{}];
-            }
-            completionHandler();
-            return;
-        }
-
-        // Category types (SleepAnalysis, MindfulSession) emit :new only
-        if ([type isEqualToString:@"SleepAnalysis"] || [type isEqualToString:@"MindfulSession"]) {
-            if (self.hasListeners) {
-                [self emitEventWithName:newEvent andPayload:@{}];
-            }
-            completionHandler();
-            return;
-        }
-
-        HKQuantityType *quantityType = (HKQuantityType *)[RCTAppleHealthKit quantityTypeFromName:type];
-        if (!quantityType) {
-            if (self.hasListeners) {
-                [self emitEventWithName:newEvent andPayload:@{}];
-            }
-            completionHandler();
-            return;
-        }
-
-        // Time gate: skip fetch if less than the configured sync interval has elapsed.
-        // Default 86400s (24h) if configureBackgroundSync was never called.
-        NSTimeInterval syncInterval = [[NSUserDefaults standardUserDefaults]
-            doubleForKey:@"RNHealth_SyncInterval"];
-        if (syncInterval <= 0) syncInterval = 86400.0;
-
-        NSString *lastFetchKey = [NSString stringWithFormat:@"RNHealth_LastFetch_%@", type];
-        NSDate   *lastFetch    = [[NSUserDefaults standardUserDefaults] objectForKey:lastFetchKey];
-        NSTimeInterval elapsed = lastFetch ? [[NSDate date] timeIntervalSinceDate:lastFetch]
-                                           : DBL_MAX;
-
-        if (elapsed < syncInterval) {
-            NSLog(@"[HealthKit] Skipping delta fetch for %@ (%.0fs < %.0fs interval)",
-                  type, elapsed, syncInterval);
-            completionHandler(); // must always be called
-            return;
-        }
-
-        // Read stored anchor
-        HKQueryAnchor *storedAnchor = nil;
-        NSString *stored = [[NSUserDefaults standardUserDefaults] stringForKey:anchorKey];
-        if (stored.length) {
-            NSData *anchorData = [[NSData alloc] initWithBase64EncodedString:stored options:0];
-            NSError *unarchiveError = nil;
-            storedAnchor = [NSKeyedUnarchiver unarchivedObjectOfClass:[HKQueryAnchor class] fromData:anchorData error:&unarchiveError];
-            if (unarchiveError) {
-                NSLog(@"RNHealth: Failed to unarchive anchor: %@", unarchiveError);
-            }
-        }
-
-        HKUnit *unit = [RCTAppleHealthKit defaultHKUnitForType:type];
-
-        [self fetchAnchoredSamplesOfType:quantityType
-                                    unit:unit
-                               predicate:nil
-                                  anchor:storedAnchor
-                                   limit:HKObjectQueryNoLimit
-                      includeManuallyAdded:YES
-                              completion:^(NSDictionary *results, NSError *fetchError) {
-
-            // Always call completionHandler — HealthKit stops background delivery if omitted
-            completionHandler();
-
-            if (fetchError || !results) {
-                NSLog(@"[HealthKit] Delta fetch error for %@: %@", type, fetchError.localizedDescription);
-                if (self.hasListeners) {
-                    [self emitEventWithName:failureEvent andPayload:@{}];
-                }
-                return;
-            }
-
-            // Persist new anchor BEFORE emitting — next delivery starts correctly
-            NSString *newAnchorString = results[@"anchor"];
-            if (newAnchorString) {
-                [[NSUserDefaults standardUserDefaults] setObject:newAnchorString forKey:anchorKey];
-            }
-
-            // Stamp last-fetch time so the time gate works on the next observer fire
-            [[NSUserDefaults standardUserDefaults] setObject:[NSDate date] forKey:lastFetchKey];
-
-            if (self.hasListeners) {
-                [self emitEventWithName:deltaEvent andPayload:results];
-                // Keep :new for backwards compatibility
-                [self emitEventWithName:newEvent andPayload:@{}];
-            }
-        }];
-    }];
-
-    [self.healthStore enableBackgroundDeliveryForType:sampleType
-                                            frequency:HKUpdateFrequencyImmediate
-                                       withCompletion:^(BOOL success, NSError * _Nullable error) {
-        if (error) {
-            NSLog(@"[HealthKit] Background delivery setup error for %@: %@", type, error.localizedDescription);
-            if (self.hasListeners) {
-                [self emitEventWithName:setupFailureEvent andPayload:@{}];
-            }
-            return;
-        }
-        NSLog(@"[HealthKit] Background delivery enabled for %@", type);
-        [self.healthStore executeQuery:query];
-        if (self.hasListeners) {
-            [self emitEventWithName:setupSuccessEvent andPayload:@{}];
-        }
-    }];
+    registerObserver();
 }
 
 - (void)fetchActivitySummary:(NSDate *)startDate

@@ -373,6 +373,9 @@ RCT_EXPORT_METHOD(getDeltaSamples:(NSDictionary *)input callback:(RCTResponseSen
     // Date predicate only applies to non-anchored queries. For anchored queries, HealthKit
     // manages the window automatically from the anchor. Applying a date predicate to anchored
     // queries silently drops samples between anchor and startDate, breaking incremental sync.
+    if (anchor != nil && (startDate != nil || periodString.length > 0)) {
+        NSLog(@"[HealthKit] getDeltaSamples: anchor takes precedence — startDate/period ignored when anchor is provided");
+    }
     NSPredicate *predicate = nil;
     if (anchor == nil) {
         predicate = [RCTAppleHealthKit predicateForAnchoredQueries:anchor startDate:startDate endDate:endDate];

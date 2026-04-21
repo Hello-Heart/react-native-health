@@ -6,11 +6,13 @@ Fetch only what changed in HealthKit since your last query — added and deleted
 
 | Options | Behaviour |
 |---|---|
-| `anchor` | Delta since last sync (no date filtering) |
-| `anchor` + `period` / `startDate` | Delta bounded by period or date window |
-| `period: 'last3months'` | All samples in last N period |
-| `startDate` / `endDate` | All samples in explicit window |
+| `anchor` | Delta since last sync — **`startDate`/`period` are ignored when `anchor` is present** |
+| `anchor` + `period` / `startDate` | **`anchor` wins** — date bounds are silently ignored; a warning is logged on the native side |
+| `period: 'last3months'` | All samples in last N period (no anchor) |
+| `startDate` / `endDate` | All samples in explicit window (no anchor) |
 | (none) | All samples in last 24 hours (default when not anchored) |
+
+> **Anchor vs date precedence:** When `anchor` is provided, HealthKit returns all changes since that checkpoint regardless of any `startDate`/`period`/`endDate` values. Those date parameters are only meaningful for non-anchored scans. Passing both `anchor` and a date bound is a no-op for the date bound — the native layer logs a warning and ignores it.
 
 ## Result shape
 
