@@ -1,0 +1,139 @@
+name: Manual Build by Branch
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch name to build'
+        required: true
+        default: 'master'
+      run_tests:
+        description: 'Run tests'
+        required: false
+        type: boolean
+        default: true
+      run_lint:
+        description: 'Run linter'
+        required: false
+        type: boolean
+        default: true
+      tag_after_build:
+        description: 'Create tag after build'
+        required: false
+        type: boolean
+        default: false
+      tag_name:
+        description: 'Tag name (if tag_after_build is true)'
+        required: false
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.inputs.branch }}
+          fetch-depth: 0
+
+      - name: Validate branch exists
+        run: |
+          git fetch origin ${{ github.event.inputs.branch }}
+          echo "✓ Branch '${{ github.event.inputs.branch }}' found"
+
+  build:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.inputs.branch }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install example app dependencies
+        run: |
+          cd example
+          npm ci
+          cd ..
+
+  lint:
+    needs: build
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.run_lint == 'true' }}
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.inputs.branch }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd example
+          npm ci
+          cd ..
+
+      - name: Run linter
+        run: cd example && npm run lint
+
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.run_tests == 'true' }}
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.inputs.branch }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd example
+          npm ci
+          cd ..
+
+      - name: Run tests
+        run: cd example && npm run test
+
+  tag:
+    needs: [build, lint, test]
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.tag_after_build == 'true' && github.event.inputs.tag_name != '' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.inputs.branch }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and push tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a ${{ github.event.inputs.tag_name }} -m "Release ${{ github.event.inputs.tag_name }}"
+          git push origin ${{ github.event.inputs.tag_name }}
+          echo "✓ Tag '${{ github.event.inputs.tag_name }}' created"
