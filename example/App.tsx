@@ -39,7 +39,7 @@ AppleHealthKit.initHealthKit(permissions, (error: string) => {
 
   AppleHealthKit.getHeartRateSamples(
     options,
-    (callbackError: string, results: HealthValue[]) => {
+    (_callbackError: string, _results: HealthValue[]) => {
       /* Samples are now collected from HealthKit */
     },
   );
