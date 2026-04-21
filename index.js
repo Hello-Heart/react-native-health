@@ -49,6 +49,7 @@ export const HealthKit =
           let settled = false
 
           requests.forEach(function(options) {
+            if (settled) return
             if (!options.type || typeof options.type !== 'string' || options.type.length === 0) {
               settled = true
               callback(new Error('getDeltaSamplesForPermissions: missing required "type" field in request (expected non-empty string)'), null)
