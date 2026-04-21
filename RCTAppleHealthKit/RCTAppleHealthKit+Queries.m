@@ -1230,15 +1230,17 @@
     NSString *setupSuccessEvent = [NSString stringWithFormat:@"healthKit:%@:setup:success", type];
     NSString *setupFailureEvent = [NSString stringWithFormat:@"healthKit:%@:setup:failure", type];
 
-    // --- Anchor seeding ---
-    // Run a limit:0 anchored query on first registration to capture the current
-    // cursor. Without this, the first observer delivery would return all
-    // HealthKit history as a "delta".
+    // --- Anchor seeding with synchronization ---
+    // Use dispatch_group_t to ensure observer registration blocks until anchor is seeded.
+    // Without synchronization, observer fires before the limit:0 query completion block writes
+    // the anchor to NSUserDefaults, leaving the observer with nil anchor.
+    dispatch_group_t seedGroup = dispatch_group_create();
     BOOL hasStoredAnchor = ([[NSUserDefaults standardUserDefaults] stringForKey:anchorKey] != nil);
     if (!hasStoredAnchor && ![type isEqualToString:@"Workout"]) {
         HKQuantityType *qt = (HKQuantityType *)[RCTAppleHealthKit quantityTypeFromName:type];
         if (qt && ![qt isEqual:[HKObjectType workoutType]]) {
             HKUnit *unit = [RCTAppleHealthKit defaultHKUnitForType:type];
+            dispatch_group_enter(seedGroup);
             [self fetchAnchoredSamplesOfType:qt
                                         unit:unit
                                    predicate:nil
@@ -1250,7 +1252,10 @@
                     [[NSUserDefaults standardUserDefaults] setObject:seedAnchor forKey:anchorKey];
                     NSLog(@"[HealthKit] Anchor seeded for %@", type);
                 }
+                dispatch_group_leave(seedGroup);
             }];
+            // Block until seeding completes before registering observer
+            dispatch_group_wait(seedGroup, DISPATCH_TIME_FOREVER);
         }
     }
 

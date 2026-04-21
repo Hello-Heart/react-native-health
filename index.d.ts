@@ -535,12 +535,6 @@ declare module 'react-native-health' {
     startDate: string
     endDate: string
     metadata?: RecordMetadata
-    /** Device identifier - product type on iOS 11+ or device name. Samples include this field consistently across all query types. */
-    device?: string
-    /** Source app name */
-    sourceName?: string
-    /** Source app bundle identifier */
-    sourceId?: string
   }
 
   export interface LocationValue {

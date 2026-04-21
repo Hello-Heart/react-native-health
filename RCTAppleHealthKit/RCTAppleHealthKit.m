@@ -837,7 +837,6 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
                 callback(@[RCTMakeError(errMsg, nil, nil)]);
                 return;
             } else {
-                [self seedInitialAnchors];
                 dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
                     callback(@[[NSNull null], @true]);
                 });
@@ -846,25 +845,6 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
     } else {
         callback(@[RCTMakeError(@"HealthKit data is not available", nil, nil)]);
     }
-}
-
-/// Initialize anchors for all supported health data types in NSUserDefaults.
-/// Called after permission authorization to ensure anchors are available before observers start firing.
-/// This prevents race conditions where observers fire before anchor initialization is complete.
-- (void)seedInitialAnchors {
-    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
-    NSArray *types = @[@"HeartRate", @"StepCount", @"ActiveEnergyBurned", @"BasalEnergyBurned",
-                       @"Cycling", @"HeartRateVariabilitySDNN", @"RestingHeartRate", @"Running",
-                       @"StairClimbing", @"Swimming", @"Vo2Max", @"Walking", @"InsulinDelivery",
-                       @"DietaryCholesterol", @"Workout"];
-
-    for (NSString *type in types) {
-        NSString *anchorKey = [NSString stringWithFormat:@"RNHealth_Anchor_%@", type];
-        if (![defaults objectForKey:anchorKey]) {
-            [defaults setObject:@"" forKey:anchorKey];
-        }
-    }
-    [defaults synchronize];
 }
 
 - (NSArray<NSString *> *)supportedEvents {
