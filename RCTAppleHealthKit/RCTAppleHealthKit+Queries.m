@@ -567,14 +567,17 @@
                     }
                 }
 
-                NSError *archiveError = nil;
-                NSData *anchorData = [NSKeyedArchiver archivedDataWithRootObject:newAnchor requiringSecureCoding:YES error:&archiveError];
-                if (archiveError) {
-                    NSLog(@"RNHealth: Failed to archive anchor: %@", archiveError);
-                    completion(nil, archiveError);
-                    return;
+                NSString *anchorString = @"";
+                if (newAnchor != nil) {
+                    NSError *archiveError = nil;
+                    NSData *anchorData = [NSKeyedArchiver archivedDataWithRootObject:newAnchor requiringSecureCoding:YES error:&archiveError];
+                    if (archiveError) {
+                        NSLog(@"RNHealth: Failed to archive anchor: %@", archiveError);
+                        completion(nil, archiveError);
+                        return;
+                    }
+                    anchorString = [anchorData base64EncodedStringWithOptions:0];
                 }
-                NSString *anchorString = [anchorData base64EncodedStringWithOptions:0];
                 completion(@{
                             @"anchor": anchorString,
                             @"data": data,
@@ -653,16 +656,19 @@
                 [deleted addObject:@{ @"id": [[obj UUID] UUIDString] }];
             }
 
-            NSError *archiveError = nil;
-            NSData *anchorData = [NSKeyedArchiver archivedDataWithRootObject:newAnchor requiringSecureCoding:YES error:&archiveError];
-            if (archiveError) {
-                NSLog(@"RNHealth: Failed to archive anchor: %@", archiveError);
-                if (completion) {
-                    completion(nil, archiveError);
+            NSString *anchorString = @"";
+            if (newAnchor != nil) {
+                NSError *archiveError = nil;
+                NSData *anchorData = [NSKeyedArchiver archivedDataWithRootObject:newAnchor requiringSecureCoding:YES error:&archiveError];
+                if (archiveError) {
+                    NSLog(@"RNHealth: Failed to archive anchor: %@", archiveError);
+                    if (completion) {
+                        completion(nil, archiveError);
+                    }
+                    return;
                 }
-                return;
+                anchorString = [anchorData base64EncodedStringWithOptions:0];
             }
-            NSString *anchorString = [anchorData base64EncodedStringWithOptions:0];
 
             NSMutableDictionary *result = [@{
                 @"anchor":  anchorString,
