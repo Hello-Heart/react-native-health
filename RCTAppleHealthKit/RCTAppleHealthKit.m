@@ -328,29 +328,8 @@ RCT_EXPORT_METHOD(getDeltaSamples:(NSDictionary *)input callback:(RCTResponseSen
     }
 
     HKQuantityType *quantityType = (HKQuantityType *)[RCTAppleHealthKit quantityTypeFromName:type];
-    if (!quantityType || [quantityType isEqual:[HKObjectType workoutType]]) {
-        NSArray *supportedTypes = @[@"HeartRate", @"StepCount", @"ActiveEnergyBurned", @"BasalEnergyBurned",
-                                   @"Cycling", @"HeartRateVariabilitySDNN", @"RestingHeartRate", @"Running",
-                                   @"StairClimbing", @"Swimming", @"Vo2Max", @"Walking", @"InsulinDelivery",
-                                   @"DietaryCholesterol"];
-        callback(@[RCTMakeError(@"getDeltaSamples: unsupported or clinical type", nil, @{
-            @"type": type,
-            @"supportedTypes": supportedTypes,
-            @"hint": @"For clinical types (AllergyRecord, ConditionRecord, etc.), ensure you have proper permissions"
-        })]);
-        return;
-    }
 
-    // Unit: caller-supplied → type default
-    HKUnit *unit;
-    NSString *unitString = [input objectForKey:@"unit"];
-    if (unitString.length) {
-        @try { unit = [HKUnit unitFromString:unitString]; }
-        @catch (NSException *e) { unit = [RCTAppleHealthKit defaultHKUnitForType:type]; }
-    } else {
-        unit = [RCTAppleHealthKit defaultHKUnitForType:type];
-    }
-
+    // Shared params — resolved identically for all HK type families
     HKQueryAnchor *anchor = [RCTAppleHealthKit hkAnchorFromOptions:input];
     NSUInteger limit      = [RCTAppleHealthKit uintFromOptions:input key:@"limit" withDefault:HKObjectQueryNoLimit];
     BOOL includeManuallyAdded = [RCTAppleHealthKit boolFromOptions:input key:@"includeManuallyAdded" withDefault:YES];
@@ -381,19 +360,87 @@ RCT_EXPORT_METHOD(getDeltaSamples:(NSDictionary *)input callback:(RCTResponseSen
         predicate = [RCTAppleHealthKit predicateForAnchoredQueries:anchor startDate:startDate endDate:endDate];
     }
 
-    [self fetchAnchoredSamplesOfType:quantityType
-                                unit:unit
-                           predicate:predicate
-                              anchor:anchor
-                               limit:limit
-                  includeManuallyAdded:includeManuallyAdded
-                          completion:^(NSDictionary *results, NSError *error) {
-        if (error) {
-            callback(@[RCTMakeError(@"getDeltaSamples error", error, nil)]);
+    // ── Quantity types (HeartRate, Steps, Weight, SpO2, HRV, etc.) ─────────────
+    if (quantityType) {
+        HKUnit *unit;
+        NSString *unitString = [input objectForKey:@"unit"];
+        if (unitString.length) {
+            @try { unit = [HKUnit unitFromString:unitString]; }
+            @catch (NSException *e) { unit = [RCTAppleHealthKit defaultHKUnitForType:type]; }
+        } else {
+            unit = [RCTAppleHealthKit defaultHKUnitForType:type];
+        }
+
+        [self fetchAnchoredSamplesOfType:quantityType
+                                    unit:unit
+                               predicate:predicate
+                                  anchor:anchor
+                                   limit:limit
+                      includeManuallyAdded:includeManuallyAdded
+                              completion:^(NSDictionary *results, NSError *error) {
+            if (error) {
+                callback(@[RCTMakeError(@"getDeltaSamples error", error, nil)]);
+                return;
+            }
+            callback(@[[NSNull null], results]);
+        }];
+        return;
+    }
+
+    // ── Sleep (HKCategoryType) ─────────────────────────────────────────────────
+    if ([type isEqualToString:@"SleepAnalysis"]) {
+        HKCategoryType *categoryType = [HKObjectType categoryTypeForIdentifier:HKCategoryTypeIdentifierSleepAnalysis];
+        [self fetchAnchoredCategorySamplesOfType:categoryType
+                                       predicate:predicate
+                                          anchor:anchor
+                                           limit:limit
+                                      completion:^(NSDictionary *results, NSError *error) {
+            if (error) {
+                callback(@[RCTMakeError(@"getDeltaSamples error", error, nil)]);
+                return;
+            }
+            callback(@[[NSNull null], results]);
+        }];
+        return;
+    }
+
+    // ── BloodPressure (HKCorrelationType) ─────────────────────────────────────
+    if ([type isEqualToString:@"BloodPressure"]) {
+        HKCorrelationType *correlationType = [HKCorrelationType correlationTypeForIdentifier:HKCorrelationTypeIdentifierBloodPressure];
+        [self fetchAnchoredCorrelationSamplesOfType:correlationType
+                                          predicate:predicate
+                                             anchor:anchor
+                                              limit:limit
+                                         completion:^(NSDictionary *results, NSError *error) {
+            if (error) {
+                callback(@[RCTMakeError(@"getDeltaSamples error", error, nil)]);
+                return;
+            }
+            callback(@[[NSNull null], results]);
+        }];
+        return;
+    }
+
+    // ── Clinical / FHIR types (LabResultRecord, AllergyRecord, etc.) ──────────
+    if (@available(iOS 12.0, *)) {
+        HKClinicalType *clinicalType = (HKClinicalType *)[RCTAppleHealthKit clinicalTypeFromName:type];
+        if (clinicalType) {
+            [self fetchAnchoredClinicalSamplesOfType:clinicalType
+                                           predicate:predicate
+                                              anchor:anchor
+                                               limit:limit
+                                          completion:^(NSDictionary *results, NSError *error) {
+                if (error) {
+                    callback(@[RCTMakeError(@"getDeltaSamples error", error, nil)]);
+                    return;
+                }
+                callback(@[[NSNull null], results]);
+            }];
             return;
         }
-        callback(@[[NSNull null], results]);
-    }];
+    }
+
+    callback(@[RCTMakeError(@"getDeltaSamples: unsupported type", nil, @{ @"type": type })]);
 }
 
 RCT_EXPORT_METHOD(getWorkoutRouteSamples:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback)

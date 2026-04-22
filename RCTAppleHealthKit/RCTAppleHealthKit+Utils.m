@@ -209,7 +209,7 @@ NSString * const kMetadataKey = @"metadata";
         return [HKObjectType quantityTypeForIdentifier:HKQuantityTypeIdentifierDistanceCycling];
     } else if ([type isEqual:@"HeartRate"]){
         return [HKObjectType quantityTypeForIdentifier:HKQuantityTypeIdentifierHeartRate];
-    } else if ([type isEqual:@"HeartRateVariabilitySDNN"]){
+    } else if ([type isEqual:@"HeartRateVariabilitySDNN"] || [type isEqual:@"HeartRateVariability"]){
         return [HKObjectType quantityTypeForIdentifier:HKQuantityTypeIdentifierHeartRateVariabilitySDNN];
     } else if ([type isEqual:@"RestingHeartRate"]){
         return [HKObjectType quantityTypeForIdentifier:HKQuantityTypeIdentifierRestingHeartRate];
@@ -231,6 +231,22 @@ NSString * const kMetadataKey = @"metadata";
         return [HKObjectType quantityTypeForIdentifier:HKQuantityTypeIdentifierDietaryCholesterol];
     } else if ([type isEqual:@"InsulinDelivery"]) {
         return [HKObjectType quantityTypeForIdentifier:HKQuantityTypeIdentifierInsulinDelivery];
+    } else if ([type isEqual:@"BodyMass"]) {
+        return [HKObjectType quantityTypeForIdentifier:HKQuantityTypeIdentifierBodyMass];
+    } else if ([type isEqual:@"BodyMassIndex"]) {
+        return [HKObjectType quantityTypeForIdentifier:HKQuantityTypeIdentifierBodyMassIndex];
+    } else if ([type isEqual:@"Height"]) {
+        return [HKObjectType quantityTypeForIdentifier:HKQuantityTypeIdentifierHeight];
+    } else if ([type isEqual:@"BodyFatPercentage"]) {
+        return [HKObjectType quantityTypeForIdentifier:HKQuantityTypeIdentifierBodyFatPercentage];
+    } else if ([type isEqual:@"OxygenSaturation"]) {
+        return [HKObjectType quantityTypeForIdentifier:HKQuantityTypeIdentifierOxygenSaturation];
+    } else if ([type isEqual:@"RespiratoryRate"]) {
+        return [HKObjectType quantityTypeForIdentifier:HKQuantityTypeIdentifierRespiratoryRate];
+    } else if ([type isEqual:@"BodyTemperature"]) {
+        return [HKObjectType quantityTypeForIdentifier:HKQuantityTypeIdentifierBodyTemperature];
+    } else if ([type isEqual:@"BloodGlucose"]) {
+        return [HKObjectType quantityTypeForIdentifier:HKQuantityTypeIdentifierBloodGlucose];
     }
 
     return nil;
@@ -284,7 +300,7 @@ NSString * const kMetadataKey = @"metadata";
     if ([@[@"HeartRate", @"RestingHeartRate", @"WalkingHeartRateAverage"] containsObject:type]) {
         return [HKUnit unitFromString:@"count/min"];
     }
-    if ([@[@"HeartRateVariabilitySDNN"] containsObject:type]) {
+    if ([@[@"HeartRateVariabilitySDNN", @"HeartRateVariability"] containsObject:type]) {
         return [HKUnit secondUnitWithMetricPrefix:HKMetricPrefixMilli];
     }
     if ([@[@"ActiveEnergyBurned", @"BasalEnergyBurned"] containsObject:type]) {

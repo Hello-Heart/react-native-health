@@ -703,6 +703,281 @@
     [self.healthStore executeQuery:query];
 }
 
+// ─── Anchored category samples (Sleep) ───────────────────────────────────────
+
+- (void)fetchAnchoredCategorySamplesOfType:(HKCategoryType *)categoryType
+                                  predicate:(NSPredicate *)predicate
+                                     anchor:(HKQueryAnchor *)anchor
+                                      limit:(NSUInteger)lim
+                                 completion:(void (^)(NSDictionary *, NSError *))completion {
+
+    void (^handlerBlock)(HKAnchoredObjectQuery *,
+                         NSArray<__kindof HKSample *> *,
+                         NSArray<HKDeletedObject *> *,
+                         HKQueryAnchor *,
+                         NSError *);
+
+    handlerBlock = ^(HKAnchoredObjectQuery *query,
+                     NSArray<__kindof HKSample *> *sampleObjects,
+                     NSArray<HKDeletedObject *> *deletedObjects,
+                     HKQueryAnchor *newAnchor,
+                     NSError *error) {
+        if (error) {
+            if (completion) { completion(nil, error); }
+            return;
+        }
+
+        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+            NSMutableArray *added   = [NSMutableArray arrayWithCapacity:sampleObjects.count];
+            NSMutableArray *deleted = [NSMutableArray arrayWithCapacity:deletedObjects.count];
+
+            for (HKCategorySample *sample in sampleObjects) {
+                @try {
+                    NSString *valueString;
+                    switch (sample.value) {
+                        case HKCategoryValueSleepAnalysisInBed:      valueString = @"INBED";   break;
+                        case HKCategoryValueSleepAnalysisAsleep:     valueString = @"ASLEEP";  break;
+                        case HKCategoryValueSleepAnalysisAsleepCore: valueString = @"CORE";    break;
+                        case HKCategoryValueSleepAnalysisAsleepDeep: valueString = @"DEEP";    break;
+                        case HKCategoryValueSleepAnalysisAsleepREM:  valueString = @"REM";     break;
+                        case HKCategoryValueSleepAnalysisAwake:      valueString = @"AWAKE";   break;
+                        default:                                      valueString = @"UNKNOWN"; break;
+                    }
+                    [added addObject:@{
+                        @"id":         [[sample UUID] UUIDString],
+                        @"value":      valueString,
+                        @"startDate":  [RCTAppleHealthKit buildISO8601StringFromDate:sample.startDate],
+                        @"endDate":    [RCTAppleHealthKit buildISO8601StringFromDate:sample.endDate],
+                        @"sourceName": [[[sample sourceRevision] source] name] ?: @"",
+                        @"sourceId":   [[[sample sourceRevision] source] bundleIdentifier] ?: @"",
+                        @"metadata":   sample.metadata ?: @{},
+                    }];
+                } @catch (NSException *e) {
+                    NSLog(@"RNHealth: fetchAnchoredCategorySamplesOfType serialization error: %@", e);
+                }
+            }
+
+            for (HKDeletedObject *obj in deletedObjects) {
+                [deleted addObject:@{ @"id": [[obj UUID] UUIDString] }];
+            }
+
+            NSString *anchorString = @"";
+            if (newAnchor != nil) {
+                NSError *archiveError = nil;
+                NSData *anchorData = [NSKeyedArchiver archivedDataWithRootObject:newAnchor
+                                                            requiringSecureCoding:YES
+                                                                            error:&archiveError];
+                if (archiveError) {
+                    NSLog(@"RNHealth: Failed to archive anchor: %@", archiveError);
+                    if (completion) { completion(nil, archiveError); }
+                    return;
+                }
+                anchorString = [anchorData base64EncodedStringWithOptions:0];
+            }
+
+            if (completion) {
+                completion(@{ @"anchor": anchorString, @"added": added, @"deleted": deleted }, nil);
+            }
+        });
+    };
+
+    HKAnchoredObjectQuery *query = [[HKAnchoredObjectQuery alloc]
+        initWithType:categoryType
+           predicate:predicate
+              anchor:anchor
+               limit:lim
+      resultsHandler:handlerBlock];
+
+    [self.healthStore executeQuery:query];
+}
+
+// ─── Anchored correlation samples (BloodPressure) ────────────────────────────
+
+- (void)fetchAnchoredCorrelationSamplesOfType:(HKCorrelationType *)correlationType
+                                     predicate:(NSPredicate *)predicate
+                                        anchor:(HKQueryAnchor *)anchor
+                                         limit:(NSUInteger)lim
+                                    completion:(void (^)(NSDictionary *, NSError *))completion {
+
+    HKQuantityType *systolicType  = [HKQuantityType quantityTypeForIdentifier:HKQuantityTypeIdentifierBloodPressureSystolic];
+    HKQuantityType *diastolicType = [HKQuantityType quantityTypeForIdentifier:HKQuantityTypeIdentifierBloodPressureDiastolic];
+    HKUnit *mmHg = [HKUnit millimeterOfMercuryUnit];
+
+    void (^handlerBlock)(HKAnchoredObjectQuery *,
+                         NSArray<__kindof HKSample *> *,
+                         NSArray<HKDeletedObject *> *,
+                         HKQueryAnchor *,
+                         NSError *);
+
+    handlerBlock = ^(HKAnchoredObjectQuery *query,
+                     NSArray<__kindof HKSample *> *sampleObjects,
+                     NSArray<HKDeletedObject *> *deletedObjects,
+                     HKQueryAnchor *newAnchor,
+                     NSError *error) {
+        if (error) {
+            if (completion) { completion(nil, error); }
+            return;
+        }
+
+        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+            NSMutableArray *added   = [NSMutableArray arrayWithCapacity:sampleObjects.count];
+            NSMutableArray *deleted = [NSMutableArray arrayWithCapacity:deletedObjects.count];
+
+            for (HKCorrelation *sample in sampleObjects) {
+                @try {
+                    HKQuantitySample *sys = [sample objectsForType:systolicType].anyObject;
+                    HKQuantitySample *dia = [sample objectsForType:diastolicType].anyObject;
+                    if (!sys || !dia) continue;
+
+                    [added addObject:@{
+                        @"id":                         [[sample UUID] UUIDString],
+                        @"bloodPressureSystolicValue":  @([sys.quantity doubleValueForUnit:mmHg]),
+                        @"bloodPressureDiastolicValue": @([dia.quantity doubleValueForUnit:mmHg]),
+                        @"startDate":  [RCTAppleHealthKit buildISO8601StringFromDate:sample.startDate],
+                        @"endDate":    [RCTAppleHealthKit buildISO8601StringFromDate:sample.endDate],
+                        @"sourceName": [[[sample sourceRevision] source] name] ?: @"",
+                        @"sourceId":   [[[sample sourceRevision] source] bundleIdentifier] ?: @"",
+                        @"metadata":   sample.metadata ?: @{},
+                    }];
+                } @catch (NSException *e) {
+                    NSLog(@"RNHealth: fetchAnchoredCorrelationSamplesOfType serialization error: %@", e);
+                }
+            }
+
+            for (HKDeletedObject *obj in deletedObjects) {
+                [deleted addObject:@{ @"id": [[obj UUID] UUIDString] }];
+            }
+
+            NSString *anchorString = @"";
+            if (newAnchor != nil) {
+                NSError *archiveError = nil;
+                NSData *anchorData = [NSKeyedArchiver archivedDataWithRootObject:newAnchor
+                                                            requiringSecureCoding:YES
+                                                                            error:&archiveError];
+                if (archiveError) {
+                    NSLog(@"RNHealth: Failed to archive anchor: %@", archiveError);
+                    if (completion) { completion(nil, archiveError); }
+                    return;
+                }
+                anchorString = [anchorData base64EncodedStringWithOptions:0];
+            }
+
+            if (completion) {
+                completion(@{ @"anchor": anchorString, @"added": added, @"deleted": deleted }, nil);
+            }
+        });
+    };
+
+    HKAnchoredObjectQuery *query = [[HKAnchoredObjectQuery alloc]
+        initWithType:correlationType
+           predicate:predicate
+              anchor:anchor
+               limit:lim
+      resultsHandler:handlerBlock];
+
+    [self.healthStore executeQuery:query];
+}
+
+// ─── Anchored clinical samples (FHIR / Cholesterol) ──────────────────────────
+
+- (void)fetchAnchoredClinicalSamplesOfType:(HKClinicalType *)clinicalType
+                                  predicate:(NSPredicate *)predicate
+                                     anchor:(HKQueryAnchor *)anchor
+                                      limit:(NSUInteger)lim
+                                 completion:(void (^)(NSDictionary *, NSError *))completion
+    API_AVAILABLE(ios(12.0)) {
+
+    void (^handlerBlock)(HKAnchoredObjectQuery *,
+                         NSArray<__kindof HKSample *> *,
+                         NSArray<HKDeletedObject *> *,
+                         HKQueryAnchor *,
+                         NSError *);
+
+    handlerBlock = ^(HKAnchoredObjectQuery *query,
+                     NSArray<__kindof HKSample *> *sampleObjects,
+                     NSArray<HKDeletedObject *> *deletedObjects,
+                     HKQueryAnchor *newAnchor,
+                     NSError *error) {
+        if (error) {
+            if (completion) { completion(nil, error); }
+            return;
+        }
+
+        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+            NSMutableArray *added   = [NSMutableArray arrayWithCapacity:sampleObjects.count];
+            NSMutableArray *deleted = [NSMutableArray arrayWithCapacity:deletedObjects.count];
+
+            for (HKClinicalRecord *record in sampleObjects) {
+                @try {
+                    NSError *jsonE = nil;
+                    id fhirData = [NSJSONSerialization JSONObjectWithData:record.FHIRResource.data
+                                                                 options:NSJSONReadingMutableContainers
+                                                                   error:&jsonE];
+                    if (!fhirData) {
+                        NSLog(@"RNHealth: fetchAnchoredClinicalSamplesOfType FHIR parse error: %@", jsonE);
+                        continue;
+                    }
+
+                    NSString *fhirRelease = @"DSTU2";
+                    NSString *fhirVersion = @"1.0.2";
+                    if (@available(iOS 14.0, *)) {
+                        HKFHIRVersion *v = record.FHIRResource.FHIRVersion;
+                        fhirRelease = v.FHIRRelease ?: fhirRelease;
+                        fhirVersion = v.stringRepresentation ?: fhirVersion;
+                    }
+
+                    [added addObject:@{
+                        @"id":          [[record UUID] UUIDString],
+                        @"displayName": record.displayName ?: @"",
+                        @"fhirData":    fhirData,
+                        @"fhirRelease": fhirRelease,
+                        @"fhirVersion": fhirVersion,
+                        @"startDate":   [RCTAppleHealthKit buildISO8601StringFromDate:record.startDate],
+                        @"endDate":     [RCTAppleHealthKit buildISO8601StringFromDate:record.endDate],
+                        @"sourceName":  [[[record sourceRevision] source] name] ?: @"",
+                        @"sourceId":    [[[record sourceRevision] source] bundleIdentifier] ?: @"",
+                    }];
+                } @catch (NSException *e) {
+                    NSLog(@"RNHealth: fetchAnchoredClinicalSamplesOfType serialization error: %@", e);
+                }
+            }
+
+            for (HKDeletedObject *obj in deletedObjects) {
+                [deleted addObject:@{ @"id": [[obj UUID] UUIDString] }];
+            }
+
+            NSString *anchorString = @"";
+            if (newAnchor != nil) {
+                NSError *archiveError = nil;
+                NSData *anchorData = [NSKeyedArchiver archivedDataWithRootObject:newAnchor
+                                                            requiringSecureCoding:YES
+                                                                            error:&archiveError];
+                if (archiveError) {
+                    NSLog(@"RNHealth: Failed to archive anchor: %@", archiveError);
+                    if (completion) { completion(nil, archiveError); }
+                    return;
+                }
+                anchorString = [anchorData base64EncodedStringWithOptions:0];
+            }
+
+            if (completion) {
+                completion(@{ @"anchor": anchorString, @"added": added, @"deleted": deleted }, nil);
+            }
+        });
+    };
+
+    HKAnchoredObjectQuery *query = [[HKAnchoredObjectQuery alloc]
+        initWithType:clinicalType
+           predicate:predicate
+              anchor:anchor
+               limit:lim
+      resultsHandler:handlerBlock];
+
+    [self.healthStore executeQuery:query];
+}
+
+// ─── Sleep (category) ─────────────────────────────────────────────────────────
+
 - (void)fetchSleepCategorySamplesForPredicate:(NSPredicate *)predicate
                                         limit:(NSUInteger)lim
                                     ascending:(BOOL)asc
