@@ -69,6 +69,7 @@
                          predicate:(NSPredicate *)predicate
                             anchor:(HKQueryAnchor *)anchor
                              limit:(NSUInteger)lim
+               includeManuallyAdded:(BOOL)includeManuallyAdded
                         completion:(void (^)(NSDictionary *, NSError *))completion;
 
 - (void)fetchQuantitySamplesOfType:(HKQuantityType *)quantityType
