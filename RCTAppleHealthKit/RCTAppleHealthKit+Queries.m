@@ -1600,12 +1600,71 @@
                 return;
             }
 
-            // Category types (SleepAnalysis, MindfulSession) emit :new only
-            if ([type isEqualToString:@"SleepAnalysis"] || [type isEqualToString:@"MindfulSession"]) {
+            // MindfulSession: no delta fetcher available, emit :new only
+            if ([type isEqualToString:@"MindfulSession"]) {
                 if (self.hasListeners) {
                     [self emitEventWithName:newEvent andPayload:@{}];
                 }
                 completionHandler();
+                return;
+            }
+
+            // SleepAnalysis: full delta fetch via fetchAnchoredCategorySamplesOfType
+            if ([type isEqualToString:@"SleepAnalysis"]) {
+                NSTimeInterval syncInterval = [[NSUserDefaults standardUserDefaults]
+                    doubleForKey:@"RNHealth_SyncInterval"];
+                if (syncInterval <= 0) syncInterval = 86400.0;
+
+                NSString *lastFetchKey = [NSString stringWithFormat:@"RNHealth_LastFetch_%@", type];
+                NSDate   *lastFetch    = [[NSUserDefaults standardUserDefaults] objectForKey:lastFetchKey];
+                NSTimeInterval elapsed = lastFetch ? [[NSDate date] timeIntervalSinceDate:lastFetch] : DBL_MAX;
+
+                if (elapsed < syncInterval) {
+                    NSLog(@"[HealthKit] Skipping delta fetch for %@ (%.0fs < %.0fs interval)", type, elapsed, syncInterval);
+                    completionHandler();
+                    return;
+                }
+
+                HKQueryAnchor *storedAnchor = nil;
+                NSString *stored = [[NSUserDefaults standardUserDefaults] stringForKey:anchorKey];
+                if (stored.length) {
+                    NSData *anchorData = [[NSData alloc] initWithBase64EncodedString:stored options:0];
+                    NSError *unarchiveError = nil;
+                    storedAnchor = [NSKeyedUnarchiver unarchivedObjectOfClass:[HKQueryAnchor class]
+                                                                    fromData:anchorData
+                                                                       error:&unarchiveError];
+                    if (unarchiveError) {
+                        NSLog(@"RNHealth: Failed to unarchive sleep anchor: %@", unarchiveError);
+                    }
+                }
+
+                HKCategoryType *sleepType = [HKObjectType categoryTypeForIdentifier:HKCategoryTypeIdentifierSleepAnalysis];
+                [self fetchAnchoredCategorySamplesOfType:sleepType
+                                               predicate:nil
+                                                  anchor:storedAnchor
+                                                   limit:HKObjectQueryNoLimit
+                                              completion:^(NSDictionary *results, NSError *fetchError) {
+                    completionHandler();
+
+                    if (fetchError || !results) {
+                        NSLog(@"[HealthKit] Sleep delta fetch error: %@", fetchError.localizedDescription);
+                        if (self.hasListeners) {
+                            [self emitEventWithName:failureEvent andPayload:@{}];
+                        }
+                        return;
+                    }
+
+                    NSString *newAnchorString = results[@"anchor"];
+                    if (newAnchorString.length > 0) {
+                        [[NSUserDefaults standardUserDefaults] setObject:newAnchorString forKey:anchorKey];
+                    }
+                    [[NSUserDefaults standardUserDefaults] setObject:[NSDate date] forKey:lastFetchKey];
+
+                    if (self.hasListeners) {
+                        [self emitEventWithName:deltaEvent andPayload:results];
+                        [self emitEventWithName:newEvent andPayload:@{}];
+                    }
+                }];
                 return;
             }
 

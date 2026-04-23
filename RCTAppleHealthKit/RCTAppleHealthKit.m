@@ -317,7 +317,19 @@ RCT_EXPORT_METHOD(getDeltaSamples:(NSDictionary *)input callback:(RCTResponseSen
 
     // Validate required type field
     if (!type || [type length] == 0) {
-        callback(@[RCTMakeError(@"getDeltaSamples: missing required 'type' field", nil, @{ @"expectedTypes": @[@"HeartRate", @"StepCount", @"ActiveEnergyBurned", @"Workout"] })]);
+        callback(@[RCTMakeError(@"getDeltaSamples: missing required 'type' field", nil, @{
+            @"expectedTypes": @[
+                @"HeartRate", @"RestingHeartRate", @"HeartRateVariabilitySDNN",
+                @"StepCount", @"Walking", @"Running", @"Cycling", @"StairClimbing", @"Swimming",
+                @"ActiveEnergyBurned", @"BasalEnergyBurned",
+                @"BodyMass", @"BodyMassIndex", @"Height", @"BodyFatPercentage",
+                @"OxygenSaturation", @"RespiratoryRate", @"BodyTemperature", @"BloodGlucose",
+                @"Vo2Max", @"InsulinDelivery", @"DietaryCholesterol",
+                @"SleepAnalysis", @"BloodPressure", @"Workout",
+                @"AllergyRecord", @"ConditionRecord", @"CoverageRecord", @"ImmunizationRecord",
+                @"LabResultRecord", @"MedicationRecord", @"ProcedureRecord", @"VitalSignRecord",
+            ],
+        })]);
         return;
     }
 
