@@ -949,45 +949,97 @@ declare module 'react-native-health' {
     id: string
   }
 
+  export interface SleepSample {
+    id: string
+    value: 'INBED' | 'ASLEEP' | 'CORE' | 'DEEP' | 'REM' | 'AWAKE' | 'UNKNOWN'
+    startDate: string
+    endDate: string
+    sourceName: string
+    sourceId: string
+    device: string
+    metadata: Record<string, unknown>
+  }
+
+  export interface BloodPressureSample {
+    id: string
+    bloodPressureSystolicValue: number
+    bloodPressureDiastolicValue: number
+    startDate: string
+    endDate: string
+    sourceName: string
+    sourceId: string
+    device: string
+    metadata: Record<string, unknown>
+  }
+
+  export interface ClinicalSample {
+    id: string
+    displayName: string
+    fhirData: Record<string, unknown>
+    fhirRelease: string
+    fhirVersion: string
+    startDate: string
+    endDate: string
+    sourceName: string
+    sourceId: string
+    device: string
+  }
+
+  export type DeltaSample = HealthValue | SleepSample | BloodPressureSample | ClinicalSample
+
   export interface DeltaQueryResult {
-    anchor:  string
-    added:   HealthValue[]
-    deleted: DeletedSample[]
+    anchor:       string
+    added:        DeltaSample[]
+    deleted:      DeletedSample[]
+    /** Number of records skipped due to incomplete data (e.g. partial BloodPressure correlations) */
+    skippedCount?: number
   }
 
   export interface DeltaQueryOptions {
     /** @required Unique identifier for the health data type (e.g., 'HeartRate', 'StepCount', 'Workout') */
-    type:       HealthObserver
+    type:                  HealthObserver
     /** Previous query result's anchor string to fetch only changes since last query */
-    anchor?:    string
+    anchor?:               string
     /** Unit for quantity types */
-    unit?:      HealthUnit
+    unit?:                 HealthUnit
     /** ISO 8601 start date string */
-    startDate?: string
+    startDate?:            string
     /** ISO 8601 end date string */
-    endDate?:   string
+    endDate?:              string
     /** Preset period like 'today' or 'last7days' */
-    period?:    HealthPeriod
+    period?:               HealthPeriod
     /** Maximum number of results to return */
-    limit?:     number
+    limit?:                number
+    /** When false, samples manually entered by the user are excluded. Defaults to true. */
+    includeManuallyAdded?: boolean
   }
 
   export enum HealthObserver {
     ActiveEnergyBurned = 'ActiveEnergyBurned',
     AllergyRecord = 'AllergyRecord',
     BasalEnergyBurned = 'BasalEnergyBurned',
+    BloodGlucose = 'BloodGlucose',
+    BloodPressure = 'BloodPressure',
+    BodyFatPercentage = 'BodyFatPercentage',
+    BodyMass = 'BodyMass',
+    BodyMassIndex = 'BodyMassIndex',
+    BodyTemperature = 'BodyTemperature',
     ConditionRecord = 'ConditionRecord',
     CoverageRecord = 'CoverageRecord',
     Cycling = 'Cycling',
     HeartRate = 'HeartRate',
     HeartRateVariabilitySDNN = 'HeartRateVariabilitySDNN',
+    Height = 'Height',
     ImmunizationRecord = 'ImmunizationRecord',
     InsulinDelivery = 'InsulinDelivery',
     LabResultRecord = 'LabResultRecord',
     MedicationRecord = 'MedicationRecord',
+    OxygenSaturation = 'OxygenSaturation',
     ProcedureRecord = 'ProcedureRecord',
+    RespiratoryRate = 'RespiratoryRate',
     RestingHeartRate = 'RestingHeartRate',
     Running = 'Running',
+    SleepAnalysis = 'SleepAnalysis',
     StairClimbing = 'StairClimbing',
     StepCount = 'StepCount',
     Swimming = 'Swimming',
