@@ -743,6 +743,12 @@
                         case HKCategoryValueSleepAnalysisAwake:      valueString = @"AWAKE";   break;
                         default:                                      valueString = @"UNKNOWN"; break;
                     }
+                    NSString *device = @"";
+                    if (@available(iOS 11.0, *)) {
+                        device = [[sample sourceRevision] productType] ?: @"";
+                    } else {
+                        device = [[sample device] name] ?: @"iPhone";
+                    }
                     [added addObject:@{
                         @"id":         [[sample UUID] UUIDString],
                         @"value":      valueString,
@@ -750,6 +756,7 @@
                         @"endDate":    [RCTAppleHealthKit buildISO8601StringFromDate:sample.endDate],
                         @"sourceName": [[[sample sourceRevision] source] name] ?: @"",
                         @"sourceId":   [[[sample sourceRevision] source] bundleIdentifier] ?: @"",
+                        @"device":     device,
                         @"metadata":   sample.metadata ?: @{},
                     }];
                 } @catch (NSException *e) {
@@ -829,6 +836,12 @@
                     HKQuantitySample *dia = [sample objectsForType:diastolicType].anyObject;
                     if (!sys || !dia) continue;
 
+                    NSString *device = @"";
+                    if (@available(iOS 11.0, *)) {
+                        device = [[sample sourceRevision] productType] ?: @"";
+                    } else {
+                        device = [[sample device] name] ?: @"iPhone";
+                    }
                     [added addObject:@{
                         @"id":                         [[sample UUID] UUIDString],
                         @"bloodPressureSystolicValue":  @([sys.quantity doubleValueForUnit:mmHg]),
@@ -837,6 +850,7 @@
                         @"endDate":    [RCTAppleHealthKit buildISO8601StringFromDate:sample.endDate],
                         @"sourceName": [[[sample sourceRevision] source] name] ?: @"",
                         @"sourceId":   [[[sample sourceRevision] source] bundleIdentifier] ?: @"",
+                        @"device":     device,
                         @"metadata":   sample.metadata ?: @{},
                     }];
                 } @catch (NSException *e) {
@@ -909,6 +923,10 @@
 
             for (HKClinicalRecord *record in sampleObjects) {
                 @try {
+                    if (!record.FHIRResource) {
+                        NSLog(@"RNHealth: fetchAnchoredClinicalSamplesOfType: record has no FHIR resource, skipping");
+                        continue;
+                    }
                     NSError *jsonE = nil;
                     id fhirData = [NSJSONSerialization JSONObjectWithData:record.FHIRResource.data
                                                                  options:NSJSONReadingMutableContainers
@@ -926,6 +944,13 @@
                         fhirVersion = v.stringRepresentation ?: fhirVersion;
                     }
 
+                    NSString *device = @"";
+                    if (@available(iOS 11.0, *)) {
+                        device = [[record sourceRevision] productType] ?: @"";
+                    } else {
+                        device = [[record device] name] ?: @"iPhone";
+                    }
+
                     [added addObject:@{
                         @"id":          [[record UUID] UUIDString],
                         @"displayName": record.displayName ?: @"",
@@ -936,6 +961,7 @@
                         @"endDate":     [RCTAppleHealthKit buildISO8601StringFromDate:record.endDate],
                         @"sourceName":  [[[record sourceRevision] source] name] ?: @"",
                         @"sourceId":    [[[record sourceRevision] source] bundleIdentifier] ?: @"",
+                        @"device":      device,
                     }];
                 } @catch (NSException *e) {
                     NSLog(@"RNHealth: fetchAnchoredClinicalSamplesOfType serialization error: %@", e);
