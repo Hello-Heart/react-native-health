@@ -306,13 +306,13 @@ NSString * const kMetadataKey = @"metadata";
     if ([@[@"ActiveEnergyBurned", @"BasalEnergyBurned"] containsObject:type]) {
         return [HKUnit kilocalorieUnit];
     }
-    if ([@[@"Running", @"Walking", @"Cycling", @"Swimming"] containsObject:type]) {
+    if ([@[@"Running", @"Cycling", @"Swimming"] containsObject:type]) {
         return [HKUnit meterUnit];
     }
     if ([@[@"Vo2Max"] containsObject:type]) {
         return [HKUnit unitFromString:@"ml/(kg*min)"];
     }
-    if ([@[@"StepCount", @"FlightsClimbed", @"PushCount"] containsObject:type]) {
+    if ([@[@"StepCount", @"FlightsClimbed", @"PushCount", @"Walking"] containsObject:type]) {
         return [HKUnit countUnit];
     }
     if ([@[@"BodyMass", @"LeanBodyMass"] containsObject:type]) {
@@ -346,8 +346,11 @@ NSString * const kMetadataKey = @"metadata";
     if ([@[@"DietaryProtein", @"DietaryFatTotal",
             @"DietaryCarbohydrates", @"DietaryFiber", @"DietarySodium",
             @"DietaryCalcium", @"DietaryIron", @"DietaryPotassium",
-            @"DietaryVitaminC", @"DietaryVitaminD"] containsObject:type]) {
+            @"DietaryVitaminC", @"DietaryVitaminD", @"DietaryCholesterol"] containsObject:type]) {
         return [HKUnit gramUnit];
+    }
+    if ([type isEqual:@"InsulinDelivery"]) {
+        return [HKUnit internationalUnit];
     }
     return [HKUnit countUnit];
 }
