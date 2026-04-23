@@ -1027,6 +1027,7 @@ declare module 'react-native-health' {
     ConditionRecord = 'ConditionRecord',
     CoverageRecord = 'CoverageRecord',
     Cycling = 'Cycling',
+    DietaryCholesterol = 'DietaryCholesterol',
     HeartRate = 'HeartRate',
     HeartRateVariabilitySDNN = 'HeartRateVariabilitySDNN',
     Height = 'Height',
