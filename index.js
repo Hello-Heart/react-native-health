@@ -44,6 +44,19 @@ export const HealthKit =
             callback(null, {})
             return
           }
+
+          // Detect duplicate types up front — silent overwrite would lose data
+          const seenTypes = new Set()
+          for (const options of requests) {
+            if (options && options.type) {
+              if (seenTypes.has(options.type)) {
+                callback(new Error('getDeltaSamplesForPermissions: duplicate type "' + options.type + '" in requests array'), null)
+                return
+              }
+              seenTypes.add(options.type)
+            }
+          }
+
           const results = {}
           let pending = requests.length
           let settled = false
