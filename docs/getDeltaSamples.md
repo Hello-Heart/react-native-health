@@ -78,7 +78,7 @@ AppleHealthKit.getDeltaSamplesForPermissions(
 
 ## Reactive mode — observer events
 
-After `initializeBackgroundObservers()`, HealthKit pushes deltas automatically:
+After calling `setObserver` for each type you want to monitor, HealthKit pushes deltas automatically:
 
 ```js
 import { NativeModules, NativeEventEmitter } from 'react-native'
@@ -154,18 +154,33 @@ If you pass an unsupported type, you'll get a helpful error with the list of sup
 
 ```javascript
 AppleHealthKit.getDeltaSamples(
-  { type: 'InvalidType', unit: 'bpm' },
+  { type: '' },
   (err) => {
-    // err.message: "getDeltaSamples: unsupported or clinical type"
-    // err.supportedTypes: ['HeartRate', 'StepCount', ..., 'Workout']
-    // err.hint: "For clinical types (AllergyRecord, ConditionRecord, etc.), ensure you have proper permissions"
+    // err.message: "getDeltaSamples: missing required 'type' field"
+    // err.userInfo.expectedTypes: ['HeartRate', 'StepCount', ..., 'Workout', ...]
   }
 )
 ```
 
-Supported standard types:
-- `HeartRate`, `RestingHeartRate`, `HeartRateVariabilitySDNN`
-- `StepCount`, `Walking`, `Running`, `Cycling`, `StairClimbing`, `Swimming`
-- `ActiveEnergyBurned`, `BasalEnergyBurned`
-- `Vo2Max`, `InsulinDelivery`, `DietaryCholesterol`
-- `Workout` (special type)
+Supported types:
+
+**Vitals & activity:**
+`HeartRate`, `RestingHeartRate`, `HeartRateVariabilitySDNN`, `Vo2Max`,
+`OxygenSaturation`, `RespiratoryRate`, `BodyTemperature`, `BloodGlucose`, `BloodPressure`
+
+**Body measurements:**
+`BodyMass`, `BodyMassIndex`, `Height`, `BodyFatPercentage`
+
+**Activity:**
+`StepCount`, `Walking`, `Running`, `Cycling`, `StairClimbing`, `Swimming`,
+`ActiveEnergyBurned`, `BasalEnergyBurned`
+
+**Other quantity types:**
+`InsulinDelivery`, `DietaryCholesterol`
+
+**Special types:**
+`SleepAnalysis` (category type), `Workout` (workout type)
+
+**Clinical / FHIR (iOS 12+):**
+`AllergyRecord`, `ConditionRecord`, `CoverageRecord`, `ImmunizationRecord`,
+`LabResultRecord`, `MedicationRecord`, `ProcedureRecord`, `VitalSignRecord`
