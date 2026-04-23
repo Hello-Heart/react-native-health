@@ -829,12 +829,17 @@
         dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
             NSMutableArray *added   = [NSMutableArray arrayWithCapacity:sampleObjects.count];
             NSMutableArray *deleted = [NSMutableArray arrayWithCapacity:deletedObjects.count];
+            NSUInteger skippedCount = 0;
 
             for (HKCorrelation *sample in sampleObjects) {
                 @try {
                     HKQuantitySample *sys = [sample objectsForType:systolicType].anyObject;
                     HKQuantitySample *dia = [sample objectsForType:diastolicType].anyObject;
-                    if (!sys || !dia) continue;
+                    if (!sys || !dia) {
+                        NSLog(@"RNHealth: fetchAnchoredCorrelationSamplesOfType: incomplete BP correlation (missing sys or dia), skipping id=%@", [[sample UUID] UUIDString]);
+                        skippedCount++;
+                        continue;
+                    }
 
                     NSString *device = @"";
                     if (@available(iOS 11.0, *)) {
@@ -877,7 +882,12 @@
             }
 
             if (completion) {
-                completion(@{ @"anchor": anchorString, @"added": added, @"deleted": deleted }, nil);
+                completion(@{
+                    @"anchor":       anchorString,
+                    @"added":        added,
+                    @"deleted":      deleted,
+                    @"skippedCount": @(skippedCount),
+                }, nil);
             }
         });
     };
