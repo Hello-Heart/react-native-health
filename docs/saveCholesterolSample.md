@@ -8,8 +8,7 @@ Example input options:
 
 ```javascript
 let options = {
-  value: 150,
-  unit: 'mg', // optional; default milligrams
+  value: 150,           // value in milligrams (default unit)
   date: new Date().toISOString(), // optional; default now
   metadata: {
     HKWasUserEntered: true,
