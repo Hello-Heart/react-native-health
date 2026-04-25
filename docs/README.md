@@ -76,6 +76,7 @@
 - [getFiberSamples](getFiberSamples.md)
 - [getTotalFatSamples](getTotalFatSamples.md)
 - [getCarbohydratesSamples](getCarbohydratesSamples.md)
+- [getCholesterolSamples](getCholesterolSamples.md)
 
 ### Fitness Methods
 
@@ -107,11 +108,10 @@
 - [saveBloodAlcoholContent](saveBloodAlcoholContent.md)
 - [saveBloodGlucoseSample](saveBloodGlucoseSample.md)
 - [deleteBloodGlucoseSample](deleteBloodGlucoseSample.md)
-- [getCholesterolSamples](getCholesterolSamples.md)
 - [saveCarbohydratesSample](saveCarbohydratesSample.md)
+- [deleteCarbohydratesSample](deleteCarbohydratesSample.md)
 - [saveCholesterolSample](saveCholesterolSample.md)
 - [deleteCholesterolSample](deleteCholesterolSample.md)
-- [deleteCarbohydratesSample](deleteCarbohydratesSample.md)
 - [getInsulinDeliverySamples](getInsulinDeliverySamples.md)
 - [saveInsulinDeliverySample](saveInsulinDeliverySample.md)
 - [deleteInsulinDeliverySample](deleteInsulinDeliverySample.md)
