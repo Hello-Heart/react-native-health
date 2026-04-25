@@ -726,6 +726,12 @@ RCT_EXPORT_METHOD(saveCarbohydratesSample:(NSDictionary *)input callback:(RCTRes
     [self results_saveCarbohydratesSample:input callback:callback];
 }
 
+RCT_EXPORT_METHOD(saveCholesterolSample:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback)
+{
+    [self _initializeHealthStore];
+    [self results_saveCholesterolSample:input callback:callback];
+}
+
 RCT_EXPORT_METHOD(deleteCarbohydratesSample:(NSString *)oid callback:(RCTResponseSenderBlock)callback)
 {
     [self _initializeHealthStore];
