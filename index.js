@@ -130,6 +130,7 @@ export const HealthKit =
         saveCholesterolSample: AppleHealthKit.saveCholesterolSample,
         deleteBloodGlucoseSample: AppleHealthKit.deleteBloodGlucoseSample,
         deleteCarbohydratesSample: AppleHealthKit.deleteCarbohydratesSample,
+        deleteCholesterolSample: AppleHealthKit.deleteCholesterolSample,
         getSleepSamples: AppleHealthKit.getSleepSamples,
         getInfo: AppleHealthKit.getInfo,
         getMindfulSession: AppleHealthKit.getMindfulSession,
