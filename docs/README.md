@@ -109,6 +109,7 @@
 - [deleteBloodGlucoseSample](deleteBloodGlucoseSample.md)
 - [saveCarbohydratesSample](saveCarbohydratesSample.md)
 - [saveCholesterolSample](saveCholesterolSample.md)
+- [deleteCholesterolSample](deleteCholesterolSample.md)
 - [deleteCarbohydratesSample](deleteCarbohydratesSample.md)
 - [getInsulinDeliverySamples](getInsulinDeliverySamples.md)
 - [saveInsulinDeliverySample](saveInsulinDeliverySample.md)
