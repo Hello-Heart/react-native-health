@@ -225,6 +225,21 @@
     }];
 }
 
+- (void)results_deleteCholesterolSample:(NSString *)oid callback:(RCTResponseSenderBlock)callback
+{
+    HKQuantityType *cholesterolType = [HKQuantityType quantityTypeForIdentifier:HKQuantityTypeIdentifierDietaryCholesterol];
+    NSUUID *uuid = [[NSUUID alloc] initWithUUIDString:oid];
+    NSPredicate *uuidPredicate = [HKQuery predicateForObjectWithUUID:uuid];
+    [self.healthStore deleteObjectsOfType:cholesterolType predicate:uuidPredicate withCompletion:^(BOOL success, NSUInteger deletedObjectCount, NSError * _Nullable error) {
+        if (!success) {
+            NSLog(@"An error occured while deleting the cholesterol sample. The error was: %@", error);
+            callback(@[RCTMakeError(@"An error occured while deleting the cholesterol sample", error, nil)]);
+            return;
+        }
+        callback(@[[NSNull null], @(deletedObjectCount)]);
+    }];
+}
+
 - (void)results_deleteBloodGlucoseSample:(NSString *)oid callback:(RCTResponseSenderBlock)callback
 {
     HKQuantityType *bloodGlucoseType = [HKQuantityType quantityTypeForIdentifier:HKQuantityTypeIdentifierBloodGlucose];
