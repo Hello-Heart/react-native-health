@@ -107,6 +107,7 @@
 - [saveBloodAlcoholContent](saveBloodAlcoholContent.md)
 - [saveBloodGlucoseSample](saveBloodGlucoseSample.md)
 - [deleteBloodGlucoseSample](deleteBloodGlucoseSample.md)
+- [getCholesterolSamples](getCholesterolSamples.md)
 - [saveCarbohydratesSample](saveCarbohydratesSample.md)
 - [saveCholesterolSample](saveCholesterolSample.md)
 - [deleteCholesterolSample](deleteCholesterolSample.md)
