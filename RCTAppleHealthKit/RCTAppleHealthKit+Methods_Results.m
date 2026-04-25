@@ -217,7 +217,7 @@
 
     [self.healthStore saveObject:cholesterolSample withCompletion:^(BOOL success, NSError *error) {
         if (!success) {
-            NSLog(@"An error occured while saving the cholesterol sample %@. The error was: ", error);
+            NSLog(@"An error occured while saving the cholesterol sample. The error was: %@", error);
             callback(@[RCTMakeError(@"An error occured while saving the cholesterol sample", error, nil)]);
             return;
         }
