@@ -199,6 +199,32 @@
     }];
 }
 
+- (void)results_saveCholesterolSample:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback
+{
+    HKQuantityType *cholesterolType = [HKQuantityType quantityTypeForIdentifier:HKQuantityTypeIdentifierDietaryCholesterol];
+
+    double value = [RCTAppleHealthKit doubleValueFromOptions:input];
+    NSDate *sampleDate = [RCTAppleHealthKit dateFromOptions:input key:@"date" withDefault:[NSDate date]];
+    HKUnit *unit = [RCTAppleHealthKit hkUnitFromOptions:input key:@"unit" withDefault:[HKUnit gramUnitWithMetricPrefix:HKMetricPrefixMilli]];
+    NSDictionary *metadata = [RCTAppleHealthKit metadataFromOptions:input withDefault:nil];
+
+    HKQuantity *cholesterolQuantity = [HKQuantity quantityWithUnit:unit doubleValue:value];
+    HKQuantitySample *cholesterolSample = [HKQuantitySample quantitySampleWithType:cholesterolType
+                                                                          quantity:cholesterolQuantity
+                                                                         startDate:sampleDate
+                                                                           endDate:sampleDate
+                                                                          metadata:metadata];
+
+    [self.healthStore saveObject:cholesterolSample withCompletion:^(BOOL success, NSError *error) {
+        if (!success) {
+            NSLog(@"An error occured while saving the cholesterol sample %@. The error was: ", error);
+            callback(@[RCTMakeError(@"An error occured while saving the cholesterol sample", error, nil)]);
+            return;
+        }
+        callback(@[[NSNull null], [cholesterolSample.UUID UUIDString]]);
+    }];
+}
+
 - (void)results_deleteBloodGlucoseSample:(NSString *)oid callback:(RCTResponseSenderBlock)callback
 {
     HKQuantityType *bloodGlucoseType = [HKQuantityType quantityTypeForIdentifier:HKQuantityTypeIdentifierBloodGlucose];
