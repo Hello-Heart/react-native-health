@@ -632,10 +632,10 @@
 
                  HKDevice *dev = sample.device;
                  NSDictionary *deviceDict = @{
-                     @"name":            dev.name            ?: [NSNull null],
-                     @"model":           dev.model           ?: [NSNull null],
-                     @"hardwareVersion": dev.hardwareVersion ?: [NSNull null],
-                     @"softwareVersion": dev.softwareVersion ?: [NSNull null],
+                     @"name":            dev.model                               ?: [NSNull null],
+                     @"model":           [[sample sourceRevision] productType]   ?: [NSNull null],
+                     @"hardwareVersion": dev.hardwareVersion                     ?: [NSNull null],
+                     @"softwareVersion": dev.softwareVersion                     ?: [NSNull null],
                  };
                  NSDictionary *elem = @{
                       @"id" : [[sample UUID] UUIDString],

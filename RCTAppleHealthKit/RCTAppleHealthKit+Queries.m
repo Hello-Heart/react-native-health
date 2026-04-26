@@ -143,10 +143,10 @@
                     
                     HKDevice *dev = routeSample.device;
                     NSDictionary *deviceDict = @{
-                        @"name":            dev.name            ?: [NSNull null],
-                        @"model":           dev.model           ?: [NSNull null],
-                        @"hardwareVersion": dev.hardwareVersion ?: [NSNull null],
-                        @"softwareVersion": dev.softwareVersion ?: [NSNull null],
+                        @"name":            dev.model                                  ?: [NSNull null],
+                        @"model":           [[routeSample sourceRevision] productType] ?: [NSNull null],
+                        @"hardwareVersion": dev.hardwareVersion                        ?: [NSNull null],
+                        @"softwareVersion": dev.softwareVersion                        ?: [NSNull null],
                     };
 
 
@@ -274,10 +274,10 @@
 
                     HKDevice *dev = sample.device;
                     NSDictionary *deviceDict = @{
-                        @"name":            dev.name            ?: [NSNull null],
-                        @"model":           dev.model           ?: [NSNull null],
-                        @"hardwareVersion": dev.hardwareVersion ?: [NSNull null],
-                        @"softwareVersion": dev.softwareVersion ?: [NSNull null],
+                        @"name":            dev.model                               ?: [NSNull null],
+                        @"model":           [[sample sourceRevision] productType]   ?: [NSNull null],
+                        @"hardwareVersion": dev.hardwareVersion                     ?: [NSNull null],
+                        @"softwareVersion": dev.softwareVersion                     ?: [NSNull null],
                     };
                     elem[@"device"] = deviceDict;
 
@@ -346,10 +346,10 @@
 
                             HKDevice *dev = sample.device;
                             NSDictionary *deviceDict = @{
-                                @"name":            dev.name            ?: [NSNull null],
-                                @"model":           dev.model           ?: [NSNull null],
-                                @"hardwareVersion": dev.hardwareVersion ?: [NSNull null],
-                                @"softwareVersion": dev.softwareVersion ?: [NSNull null],
+                                @"name":            dev.model                               ?: [NSNull null],
+                                @"model":           [[sample sourceRevision] productType]   ?: [NSNull null],
+                                @"hardwareVersion": dev.hardwareVersion                     ?: [NSNull null],
+                                @"softwareVersion": dev.softwareVersion                     ?: [NSNull null],
                             };
 
                             NSDictionary *elem = @{
@@ -393,10 +393,10 @@
 
                             HKDevice *dev = sample.device;
                             NSDictionary *deviceDict = @{
-                                @"name":            dev.name            ?: [NSNull null],
-                                @"model":           dev.model           ?: [NSNull null],
-                                @"hardwareVersion": dev.hardwareVersion ?: [NSNull null],
-                                @"softwareVersion": dev.softwareVersion ?: [NSNull null],
+                                @"name":            dev.model                               ?: [NSNull null],
+                                @"model":           [[sample sourceRevision] productType]   ?: [NSNull null],
+                                @"hardwareVersion": dev.hardwareVersion                     ?: [NSNull null],
+                                @"softwareVersion": dev.softwareVersion                     ?: [NSNull null],
                             };
 
                             NSDictionary *elem = @{
@@ -536,10 +536,10 @@
 
                         HKDevice *dev = sample.device;
                         NSDictionary *deviceDict = @{
-                            @"name":            dev.name            ?: [NSNull null],
-                            @"model":           dev.model           ?: [NSNull null],
-                            @"hardwareVersion": dev.hardwareVersion ?: [NSNull null],
-                            @"softwareVersion": dev.softwareVersion ?: [NSNull null],
+                            @"name":            dev.model                               ?: [NSNull null],
+                            @"model":           [[sample sourceRevision] productType]   ?: [NSNull null],
+                            @"hardwareVersion": dev.hardwareVersion                     ?: [NSNull null],
+                            @"softwareVersion": dev.softwareVersion                     ?: [NSNull null],
                         };
 
                         NSDictionary *elem = @{
@@ -634,10 +634,10 @@
                     NSString *endDate   = [RCTAppleHealthKit buildISO8601StringFromDate:sample.endDate];
                     HKDevice *dev = sample.device;
                     NSDictionary *deviceDict = @{
-                        @"name":            dev.name            ?: [NSNull null],
-                        @"model":           dev.model           ?: [NSNull null],
-                        @"hardwareVersion": dev.hardwareVersion ?: [NSNull null],
-                        @"softwareVersion": dev.softwareVersion ?: [NSNull null],
+                        @"name":            dev.model                               ?: [NSNull null],
+                        @"model":           [[sample sourceRevision] productType]   ?: [NSNull null],
+                        @"hardwareVersion": dev.hardwareVersion                     ?: [NSNull null],
+                        @"softwareVersion": dev.softwareVersion                     ?: [NSNull null],
                     };
                     [added addObject:@{
                         @"id":         [[sample UUID] UUIDString],
@@ -746,10 +746,10 @@
                     }
                     HKDevice *dev = sample.device;
                     NSDictionary *deviceDict = @{
-                        @"name":            dev.name            ?: [NSNull null],
-                        @"model":           dev.model           ?: [NSNull null],
-                        @"hardwareVersion": dev.hardwareVersion ?: [NSNull null],
-                        @"softwareVersion": dev.softwareVersion ?: [NSNull null],
+                        @"name":            dev.model                               ?: [NSNull null],
+                        @"model":           [[sample sourceRevision] productType]   ?: [NSNull null],
+                        @"hardwareVersion": dev.hardwareVersion                     ?: [NSNull null],
+                        @"softwareVersion": dev.softwareVersion                     ?: [NSNull null],
                     };
                     [added addObject:@{
                         @"id":         [[sample UUID] UUIDString],
@@ -855,10 +855,10 @@
 
                     HKDevice *dev = sample.device;
                     NSDictionary *deviceDict = @{
-                        @"name":            dev.name            ?: [NSNull null],
-                        @"model":           dev.model           ?: [NSNull null],
-                        @"hardwareVersion": dev.hardwareVersion ?: [NSNull null],
-                        @"softwareVersion": dev.softwareVersion ?: [NSNull null],
+                        @"name":            dev.model                               ?: [NSNull null],
+                        @"model":           [[sample sourceRevision] productType]   ?: [NSNull null],
+                        @"hardwareVersion": dev.hardwareVersion                     ?: [NSNull null],
+                        @"softwareVersion": dev.softwareVersion                     ?: [NSNull null],
                     };
                     [added addObject:@{
                         @"id":                         [[sample UUID] UUIDString],
@@ -977,10 +977,10 @@
 
                     HKDevice *dev = record.device;
                     NSDictionary *deviceDict = @{
-                        @"name":            dev.name            ?: [NSNull null],
-                        @"model":           dev.model           ?: [NSNull null],
-                        @"hardwareVersion": dev.hardwareVersion ?: [NSNull null],
-                        @"softwareVersion": dev.softwareVersion ?: [NSNull null],
+                        @"name":            dev.model                               ?: [NSNull null],
+                        @"model":           [[record sourceRevision] productType]   ?: [NSNull null],
+                        @"hardwareVersion": dev.hardwareVersion                     ?: [NSNull null],
+                        @"softwareVersion": dev.softwareVersion                     ?: [NSNull null],
                     };
 
                     [added addObject:@{
