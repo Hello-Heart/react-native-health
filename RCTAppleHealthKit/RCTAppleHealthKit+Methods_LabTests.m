@@ -55,12 +55,13 @@
     }
     NSPredicate * predicate = [RCTAppleHealthKit predicateForSamplesBetweenDates:startDate endDate:endDate];
 
+    BOOL includeManuallyAdded = [RCTAppleHealthKit boolFromOptions:input key:@"includeManuallyAdded" withDefault:true];
     [self fetchQuantitySamplesOfType:bloodAlcoholContentType
                                 unit:unit
                            predicate:predicate
                            ascending:ascending
                                limit:limit
-                  includeManuallyAdded:YES
+                  includeManuallyAdded:includeManuallyAdded
                           completion:^(NSArray *results, NSError *error) {
         if(results){
             callback(@[[NSNull null], results]);

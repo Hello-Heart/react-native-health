@@ -58,12 +58,13 @@
     }
     NSPredicate * predicate = [RCTAppleHealthKit predicateForSamplesBetweenDates:startDate endDate:endDate];
 
+    BOOL includeManuallyAdded = [RCTAppleHealthKit boolFromOptions:input key:@"includeManuallyAdded" withDefault:true];
     [self fetchQuantitySamplesOfType:heartRateType
                                 unit:unit
                            predicate:predicate
                            ascending:ascending
                                limit:limit
-                  includeManuallyAdded:YES
+                  includeManuallyAdded:includeManuallyAdded
                           completion:^(NSArray *results, NSError *error) {
                               if(results){
                                   callback(@[[NSNull null], results]);
@@ -95,12 +96,13 @@
     }
     NSPredicate * predicate = [RCTAppleHealthKit predicateForSamplesBetweenDates:startDate endDate:endDate];
 
+    BOOL includeManuallyAdded = [RCTAppleHealthKit boolFromOptions:input key:@"includeManuallyAdded" withDefault:true];
     [self fetchQuantitySamplesOfType:restingHeartRateType
                                 unit:unit
                            predicate:predicate
                            ascending:ascending
                                limit:limit
-                  includeManuallyAdded:YES
+                  includeManuallyAdded:includeManuallyAdded
                           completion:^(NSArray *results, NSError *error) {
                               if(results){
                                   callback(@[[NSNull null], results]);
@@ -131,12 +133,13 @@
     }
     NSPredicate * predicate = [RCTAppleHealthKit predicateForSamplesBetweenDates:startDate endDate:endDate];
 
+    BOOL includeManuallyAdded = [RCTAppleHealthKit boolFromOptions:input key:@"includeManuallyAdded" withDefault:true];
     [self fetchQuantitySamplesOfType:restingHeartRateType
                                 unit:unit
                            predicate:predicate
                            ascending:ascending
                                limit:limit
-                  includeManuallyAdded:YES
+                  includeManuallyAdded:includeManuallyAdded
                           completion:^(NSArray *results, NSError *error) {
                               if(results){
                                   callback(@[[NSNull null], results]);
@@ -164,12 +167,13 @@
     }
     NSPredicate * predicate = [RCTAppleHealthKit predicateForSamplesBetweenDates:startDate endDate:endDate];
 
+    BOOL includeManuallyAdded = [RCTAppleHealthKit boolFromOptions:input key:@"includeManuallyAdded" withDefault:true];
     [self fetchQuantitySamplesOfType:hrvType
                                 unit:unit
                            predicate:predicate
                            ascending:ascending
                                limit:limit
-                  includeManuallyAdded:YES
+                  includeManuallyAdded:includeManuallyAdded
                           completion:^(NSArray *results, NSError *error) {
                               if(results){
                                   callback(@[[NSNull null], results]);
@@ -302,12 +306,13 @@
     }
     NSPredicate * predicate = [RCTAppleHealthKit predicateForSamplesBetweenDates:startDate endDate:endDate];
 
+    BOOL includeManuallyAdded = [RCTAppleHealthKit boolFromOptions:input key:@"includeManuallyAdded" withDefault:true];
     [self fetchQuantitySamplesOfType:restingHeartRateType
                                 unit:unit
                            predicate:predicate
                            ascending:ascending
                                limit:limit
-                  includeManuallyAdded:YES
+                  includeManuallyAdded:includeManuallyAdded
                           completion:^(NSArray *results, NSError *error) {
                               if(results){
                                   callback(@[[NSNull null], results]);
@@ -334,12 +339,13 @@
     }
     NSPredicate * predicate = [RCTAppleHealthKit predicateForSamplesBetweenDates:startDate endDate:endDate];
 
+    BOOL includeManuallyAdded = [RCTAppleHealthKit boolFromOptions:input key:@"includeManuallyAdded" withDefault:true];
     [self fetchQuantitySamplesOfType:bodyTemperatureType
                                 unit:unit
                            predicate:predicate
                            ascending:ascending
                                limit:limit
-                  includeManuallyAdded:YES
+                  includeManuallyAdded:includeManuallyAdded
                           completion:^(NSArray *results, NSError *error) {
         if(results){
             callback(@[[NSNull null], results]);
@@ -456,12 +462,13 @@
     }
     NSPredicate * predicate = [RCTAppleHealthKit predicateForSamplesBetweenDates:startDate endDate:endDate];
 
+    BOOL includeManuallyAdded = [RCTAppleHealthKit boolFromOptions:input key:@"includeManuallyAdded" withDefault:true];
     [self fetchQuantitySamplesOfType:respiratoryRateType
                                 unit:unit
                            predicate:predicate
                            ascending:ascending
                                limit:limit
-                  includeManuallyAdded:YES
+                  includeManuallyAdded:includeManuallyAdded
                           completion:^(NSArray *results, NSError *error) {
         if(results){
             callback(@[[NSNull null], results]);
@@ -489,12 +496,13 @@
     NSDate *endDate = [RCTAppleHealthKit dateFromOptions:input key:@"endDate" withDefault:[NSDate date]];
 
     NSPredicate * predicate = [RCTAppleHealthKit predicateForSamplesBetweenDates:startDate endDate:endDate];
+    BOOL includeManuallyAdded = [RCTAppleHealthKit boolFromOptions:input key:@"includeManuallyAdded" withDefault:true];
     [self fetchQuantitySamplesOfType:vo2MaxType
                                 unit:unit
                            predicate:predicate
                            ascending:ascending
                                limit:limit
-                  includeManuallyAdded:YES
+                  includeManuallyAdded:includeManuallyAdded
                           completion:^(NSArray *results, NSError *error) {
         if (results) {
             callback(@[[NSNull null], results]);
@@ -526,12 +534,13 @@
     }
     NSPredicate * predicate = [RCTAppleHealthKit predicateForSamplesBetweenDates:startDate endDate:endDate];
 
+    BOOL includeManuallyAdded = [RCTAppleHealthKit boolFromOptions:input key:@"includeManuallyAdded" withDefault:true];
     [self fetchQuantitySamplesOfType:oxygenSaturationType
                                 unit:unit
                            predicate:predicate
                            ascending:ascending
                                limit:limit
-                  includeManuallyAdded:YES
+                  includeManuallyAdded:includeManuallyAdded
                           completion:^(NSArray *results, NSError *error) {
         if(results){
             callback(@[[NSNull null], results]);
