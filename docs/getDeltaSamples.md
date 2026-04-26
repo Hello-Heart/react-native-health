@@ -18,11 +18,13 @@ Fetch only what changed in HealthKit since your last query — added and deleted
 
 ```ts
 {
-  anchor:  string            // Store and pass back on next call
-  added:   HealthValue[]     // New or updated samples
-  deleted: { id: string }[]  // Deleted sample UUIDs — original data is gone
+  anchor:  string          // Store and pass back on next call
+  added:   DeltaSample[]   // HealthValue | SleepSample | BloodPressureSample | ClinicalSample — shape depends on `type`
+  deleted: { id: string }[] // Deleted sample UUIDs — original data is gone
 }
 ```
+
+> **Shape depends on `type`:** `added` entries are `HealthValue` for most types, `SleepSample` for `SleepAnalysis`, `BloodPressureSample` for `BloodPressure`, and `ClinicalSample` for clinical record types. Accessing `.value` directly will crash or return `undefined` for BloodPressure and Clinical — narrow the type by `options.type` first.
 
 ## Proactive mode — fetch on demand
 
