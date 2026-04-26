@@ -122,6 +122,7 @@ The `type` field is **required**. If omitted or empty, both methods return an er
 // ❌ WRONG - missing type
 AppleHealthKit.getDeltaSamples({ anchor: lastAnchor }, (err) => {
   // err.message: "getDeltaSamples: missing required 'type' field"
+  // err.expectedTypes: ['HeartRate', 'StepCount', ..., 'Workout', ...]
 })
 
 // ✅ CORRECT
@@ -152,14 +153,26 @@ AppleHealthKit.getDeltaSamplesForPermissions([
 
 ## Unsupported Type Errors
 
-If you pass an unsupported type, you'll get a helpful error with the list of supported types:
+Passing a non-empty but unrecognized type returns a distinct error:
+
+```javascript
+AppleHealthKit.getDeltaSamples(
+  { type: 'UnknownType' },
+  (err) => {
+    // err.message: "getDeltaSamples: unsupported type"
+    // err.type: 'UnknownType'
+  }
+)
+```
+
+Passing an empty or missing type returns the missing-type error with the full supported list:
 
 ```javascript
 AppleHealthKit.getDeltaSamples(
   { type: '' },
   (err) => {
     // err.message: "getDeltaSamples: missing required 'type' field"
-    // err.userInfo.expectedTypes: ['HeartRate', 'StepCount', ..., 'Workout', ...]
+    // err.expectedTypes: ['HeartRate', 'StepCount', ..., 'Workout', ...]
   }
 )
 ```
