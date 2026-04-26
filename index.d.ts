@@ -991,8 +991,8 @@ declare module 'react-native-health' {
     anchor:       string
     added:        DeltaSample[]
     deleted:      DeletedSample[]
-    /** Number of records skipped due to incomplete data (e.g. partial BloodPressure correlations) */
-    skippedCount?: number
+    /** Number of samples skipped due to serialization errors or incomplete data (e.g. partial BloodPressure correlations). Only present when > 0. */
+    serializationErrors?: number
   }
 
   export interface DeltaQueryOptions {
