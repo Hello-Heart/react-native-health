@@ -128,13 +128,16 @@
                 
                 if(done) {
                     //all batches successfully completed
-                    NSError *archiveError = nil;
-                    NSData *anchorData = [NSKeyedArchiver archivedDataWithRootObject:newAnchor requiringSecureCoding:YES error:&archiveError];
-                    if (archiveError) {
-                        NSLog(@"RNHealth: Failed to archive anchor: %@", archiveError);
-                        return;
+                    NSString *anchorString = @"";
+                    if (newAnchor != nil) {
+                        NSError *archiveError = nil;
+                        NSData *anchorData = [NSKeyedArchiver archivedDataWithRootObject:newAnchor requiringSecureCoding:YES error:&archiveError];
+                        if (archiveError) {
+                            NSLog(@"RNHealth: Failed to archive route anchor: %@", archiveError);
+                            return;
+                        }
+                        anchorString = [anchorData base64EncodedStringWithOptions:0];
                     }
-                    NSString *anchorString = [anchorData base64EncodedStringWithOptions:0];
                     NSString *start = [RCTAppleHealthKit buildISO8601StringFromDate:routeSample.startDate];
                     NSString *end = [RCTAppleHealthKit buildISO8601StringFromDate:routeSample.endDate];
                     
