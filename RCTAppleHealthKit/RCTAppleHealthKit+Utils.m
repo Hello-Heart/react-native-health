@@ -343,10 +343,13 @@ NSString * const kMetadataKey = @"metadata";
     if ([type isEqual:@"DietaryEnergyConsumed"]) {
         return [HKUnit kilocalorieUnit];
     }
+    if ([type isEqual:@"DietaryCholesterol"]) {
+        return [HKUnit gramUnitWithMetricPrefix:HKMetricPrefixMilli];
+    }
     if ([@[@"DietaryProtein", @"DietaryFatTotal",
             @"DietaryCarbohydrates", @"DietaryFiber", @"DietarySodium",
             @"DietaryCalcium", @"DietaryIron", @"DietaryPotassium",
-            @"DietaryVitaminC", @"DietaryVitaminD", @"DietaryCholesterol"] containsObject:type]) {
+            @"DietaryVitaminC", @"DietaryVitaminD"] containsObject:type]) {
         return [HKUnit gramUnit];
     }
     if ([type isEqual:@"InsulinDelivery"]) {
