@@ -655,7 +655,8 @@
                         @"metadata":   sample.metadata ?: @{},
                     }];
                 } @catch (NSException *e) {
-                    NSLog(@"RNHealth: fetchAnchoredSamplesOfType serialization error: %@", e);
+                    NSLog(@"RNHealth: fetchAnchoredSamplesOfType: skipping sample %@ (%@: %@)",
+                          [[sample UUID] UUIDString], e.name, e.reason);
                     serializationErrors++;
                 }
             }
@@ -763,7 +764,8 @@
                         @"metadata":   sample.metadata ?: @{},
                     }];
                 } @catch (NSException *e) {
-                    NSLog(@"RNHealth: fetchAnchoredCategorySamplesOfType serialization error: %@", e);
+                    NSLog(@"RNHealth: fetchAnchoredCategorySamplesOfType: skipping sample %@ (%@: %@)",
+                          [[sample UUID] UUIDString], e.name, e.reason);
                 }
             }
 
@@ -862,7 +864,8 @@
                         @"metadata":   sample.metadata ?: @{},
                     }];
                 } @catch (NSException *e) {
-                    NSLog(@"RNHealth: fetchAnchoredCorrelationSamplesOfType serialization error: %@", e);
+                    NSLog(@"RNHealth: fetchAnchoredCorrelationSamplesOfType: skipping sample %@ (%@: %@)",
+                          [[sample UUID] UUIDString], e.name, e.reason);
                 }
             }
 
@@ -977,7 +980,8 @@
                         @"device":      device,
                     }];
                 } @catch (NSException *e) {
-                    NSLog(@"RNHealth: fetchAnchoredClinicalSamplesOfType serialization error: %@", e);
+                    NSLog(@"RNHealth: fetchAnchoredClinicalSamplesOfType: skipping record %@ (%@: %@)",
+                          [[record UUID] UUIDString], e.name, e.reason);
                 }
             }
 
