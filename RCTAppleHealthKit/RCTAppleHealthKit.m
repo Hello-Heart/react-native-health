@@ -391,7 +391,11 @@ RCT_EXPORT_METHOD(getDeltaSamples:(NSDictionary *)input callback:(RCTResponseSen
                       includeManuallyAdded:includeManuallyAdded
                               completion:^(NSDictionary *results, NSError *error) {
             if (error) {
-                callback(@[RCTMakeError(@"getDeltaSamples error", error, nil)]);
+                callback(@[RCTMakeError(@"getDeltaSamples error", error, @{
+                    @"code":   @(error.code),
+                    @"domain": error.domain ?: @"",
+                    @"type":   type,
+                })]);
                 return;
             }
             callback(@[[NSNull null], results]);
@@ -408,7 +412,11 @@ RCT_EXPORT_METHOD(getDeltaSamples:(NSDictionary *)input callback:(RCTResponseSen
                                            limit:limit
                                       completion:^(NSDictionary *results, NSError *error) {
             if (error) {
-                callback(@[RCTMakeError(@"getDeltaSamples error", error, nil)]);
+                callback(@[RCTMakeError(@"getDeltaSamples error", error, @{
+                    @"code":   @(error.code),
+                    @"domain": error.domain ?: @"",
+                    @"type":   type,
+                })]);
                 return;
             }
             callback(@[[NSNull null], results]);
@@ -425,7 +433,11 @@ RCT_EXPORT_METHOD(getDeltaSamples:(NSDictionary *)input callback:(RCTResponseSen
                                               limit:limit
                                          completion:^(NSDictionary *results, NSError *error) {
             if (error) {
-                callback(@[RCTMakeError(@"getDeltaSamples error", error, nil)]);
+                callback(@[RCTMakeError(@"getDeltaSamples error", error, @{
+                    @"code":   @(error.code),
+                    @"domain": error.domain ?: @"",
+                    @"type":   type,
+                })]);
                 return;
             }
             callback(@[[NSNull null], results]);
@@ -443,7 +455,11 @@ RCT_EXPORT_METHOD(getDeltaSamples:(NSDictionary *)input callback:(RCTResponseSen
                                                limit:limit
                                           completion:^(NSDictionary *results, NSError *error) {
                 if (error) {
-                    callback(@[RCTMakeError(@"getDeltaSamples error", error, nil)]);
+                    callback(@[RCTMakeError(@"getDeltaSamples error", error, @{
+                    @"code":   @(error.code),
+                    @"domain": error.domain ?: @"",
+                    @"type":   type,
+                })]);
                     return;
                 }
                 callback(@[[NSNull null], results]);
