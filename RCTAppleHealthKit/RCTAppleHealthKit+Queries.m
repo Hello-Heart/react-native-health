@@ -956,6 +956,7 @@
                 @try {
                     if (!record.FHIRResource) {
                         NSLog(@"RNHealth: fetchAnchoredClinicalSamplesOfType: record has no FHIR resource, skipping");
+                        serializationErrors++;
                         continue;
                     }
                     NSError *jsonE = nil;
@@ -964,6 +965,7 @@
                                                                    error:&jsonE];
                     if (!fhirData) {
                         NSLog(@"RNHealth: fetchAnchoredClinicalSamplesOfType FHIR parse error: %@", jsonE);
+                        serializationErrors++;
                         continue;
                     }
 
@@ -1798,6 +1800,26 @@
     // anchor as valid — empty string passes != nil but is not a real anchor.
     BOOL hasStoredAnchor = ([[NSUserDefaults standardUserDefaults] stringForKey:anchorKey].length > 0);
     if (!hasStoredAnchor && ![type isEqualToString:@"Workout"]) {
+        if ([type isEqualToString:@"SleepAnalysis"]) {
+            HKCategoryType *sleepType = [HKObjectType categoryTypeForIdentifier:HKCategoryTypeIdentifierSleepAnalysis];
+            [self fetchAnchoredCategorySamplesOfType:sleepType
+                                           predicate:nil
+                                              anchor:nil
+                                               limit:0
+                                          completion:^(NSDictionary *results, NSError *error) {
+                if (error) {
+                    NSLog(@"[HealthKit] Anchor seed fetch failed for SleepAnalysis: %@", error.localizedDescription);
+                } else {
+                    NSString *seedAnchor = results[@"anchor"];
+                    if (seedAnchor.length > 0) {
+                        [[NSUserDefaults standardUserDefaults] setObject:seedAnchor forKey:anchorKey];
+                        NSLog(@"[HealthKit] Anchor seeded for SleepAnalysis");
+                    }
+                }
+                registerObserver();
+            }];
+            return;
+        }
         HKQuantityType *qt = (HKQuantityType *)[RCTAppleHealthKit quantityTypeFromName:type];
         if (qt && ![qt isEqual:[HKObjectType workoutType]]) {
             HKUnit *unit = [RCTAppleHealthKit defaultHKUnitForType:type];

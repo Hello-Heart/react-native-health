@@ -496,8 +496,12 @@
 - (void)fitness_registerObserver:(NSString *)type
                           bridge:(RCTBridge *)bridge
 {
-    HKSampleType *sampleType = [RCTAppleHealthKit quantityTypeFromName:type];
-
+    HKSampleType *sampleType;
+    if ([type isEqualToString:@"SleepAnalysis"]) {
+        sampleType = [HKObjectType categoryTypeForIdentifier:HKCategoryTypeIdentifierSleepAnalysis];
+    } else {
+        sampleType = [RCTAppleHealthKit quantityTypeFromName:type];
+    }
     [self setObserverForType:sampleType type:type bridge:bridge];
 }
 
