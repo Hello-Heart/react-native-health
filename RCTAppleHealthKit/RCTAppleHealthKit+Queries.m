@@ -1552,7 +1552,6 @@
 - (void)setObserverForType:(HKSampleType *)sampleType
                       type:(NSString *)type
                     bridge:(RCTBridge *)bridge
-                    hasListeners:(bool)hasListeners
 {
     NSString *deltaEvent        = [NSString stringWithFormat:@"healthKit:%@:delta",         type];
     NSString *newEvent          = [NSString stringWithFormat:@"healthKit:%@:new",           type];

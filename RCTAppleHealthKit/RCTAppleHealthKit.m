@@ -1049,9 +1049,9 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
         ];
 
         for(NSString * type in fitnessObservers) {
-            [self fitness_registerObserver:type bridge:bridge hasListeners:hasListeners];
+            [self fitness_registerObserver:type bridge:bridge];
         }
-        
+
         NSArray *clinicalObservers = @[
             @"AllergyRecord",
             @"ConditionRecord",
@@ -1062,12 +1062,12 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
             @"ProcedureRecord",
             @"VitalSignRecord"
         ];
-        
+
         for(NSString * type in clinicalObservers) {
-            [self clinical_registerObserver:type bridge:bridge hasListeners:hasListeners];
+            [self clinical_registerObserver:type bridge:bridge];
         }
-        
-        [self results_registerObservers:bridge hasListeners:hasListeners];
+
+        [self results_registerObservers:bridge];
 
         NSLog(@"[HealthKit] Background observers added to the app");
         [self startObserving];

@@ -28,7 +28,6 @@
 
 - (void)fitness_setObserver:(NSDictionary *)input __deprecated;
 - (void)fitness_registerObserver:(NSString *)type
-                          bridge:(RCTBridge *)bridge
-                    hasListeners:(bool)hasListeners;
+                          bridge:(RCTBridge *)bridge;
 
 @end
