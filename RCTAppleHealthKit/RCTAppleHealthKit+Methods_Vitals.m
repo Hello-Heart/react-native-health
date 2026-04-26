@@ -629,7 +629,14 @@
                  HKUnit *minute = [HKUnit minuteUnit];
                  HKUnit *bpmUnit = [count unitDividedByUnit:minute];
                  double averageHeartRate = [sample.averageHeartRate doubleValueForUnit:bpmUnit];
-                 
+
+                 HKDevice *dev = sample.device;
+                 NSDictionary *deviceDict = @{
+                     @"name":            dev.name            ?: [NSNull null],
+                     @"model":           dev.model           ?: [NSNull null],
+                     @"hardwareVersion": dev.hardwareVersion ?: [NSNull null],
+                     @"softwareVersion": dev.softwareVersion ?: [NSNull null],
+                 };
                  NSDictionary *elem = @{
                       @"id" : [[sample UUID] UUIDString],
                       @"sourceName" : [[[sample sourceRevision] source] name],
@@ -639,7 +646,7 @@
                       @"classification": classification,
                       @"averageHeartRate": @(averageHeartRate),
                       @"samplingFrequency": @([sample.samplingFrequency doubleValueForUnit:HKUnit.hertzUnit]),
-                      @"device": [[sample sourceRevision] productType],
+                      @"device": deviceDict,
                       @"algorithmVersion": @([[sample metadata][HKMetadataKeyAppleECGAlgorithmVersion] intValue]),
                       @"voltageMeasurements": @[]
                   };

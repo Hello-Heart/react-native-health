@@ -530,13 +530,19 @@ declare module 'react-native-health' {
     value: string
     age: number
   }
+  export interface HKDevice {
+    name?: string
+    model?: string
+    hardwareVersion?: string
+    softwareVersion?: string
+  }
+
   interface BaseValue {
     id?: string
     startDate: string
     endDate: string
     metadata?: RecordMetadata
-    /** Device identifier - product type (iOS 11+) or device name (pre-iOS 11). Returns consistently as string across all query types. */
-    device: string
+    device?: HKDevice
   }
 
   export interface LocationValue {
@@ -588,7 +594,7 @@ declare module 'react-native-health' {
   }
 
   export interface HKWorkoutRouteSampleType {
-    device: string
+    device?: HKDevice
     id: string
     metadata: any
     sourceName: string
@@ -620,7 +626,7 @@ declare module 'react-native-health' {
     activityId: number
     activityName: string
     calories: number
-    device: string
+    device?: HKDevice
     id: string
     tracked: boolean
     metadata: any
@@ -637,7 +643,6 @@ declare module 'react-native-health' {
     classification: ElectrocardiogramClassification
     averageHeartRate: number
     samplingFrequency: number
-    device: string
     algorithmVersion: number
     voltageMeasurements: number[][]
   }
@@ -956,7 +961,7 @@ declare module 'react-native-health' {
     endDate: string
     sourceName: string
     sourceId: string
-    device: string
+    device?: HKDevice
     metadata: Record<string, unknown>
   }
 
@@ -968,7 +973,7 @@ declare module 'react-native-health' {
     endDate: string
     sourceName: string
     sourceId: string
-    device: string
+    device?: HKDevice
     metadata: Record<string, unknown>
   }
 
@@ -982,7 +987,7 @@ declare module 'react-native-health' {
     endDate: string
     sourceName: string
     sourceId: string
-    device: string
+    device?: HKDevice
   }
 
   export type DeltaSample = HealthValue | SleepSample | BloodPressureSample | ClinicalSample

@@ -141,25 +141,23 @@
                     NSString *start = [RCTAppleHealthKit buildISO8601StringFromDate:routeSample.startDate];
                     NSString *end = [RCTAppleHealthKit buildISO8601StringFromDate:routeSample.endDate];
                     
-                    NSString* device = @"";
-                    if (@available(iOS 11.0, *)) {
-                        device = [[routeSample sourceRevision] productType];
-                    } else {
-                        device = [[routeSample device] name];
-                        if (!device) {
-                            device = @"iPhone";
-                        }
-                    }
-                    
-                    
+                    HKDevice *dev = routeSample.device;
+                    NSDictionary *deviceDict = @{
+                        @"name":            dev.name            ?: [NSNull null],
+                        @"model":           dev.model           ?: [NSNull null],
+                        @"hardwareVersion": dev.hardwareVersion ?: [NSNull null],
+                        @"softwareVersion": dev.softwareVersion ?: [NSNull null],
+                    };
+
+
                     NSObject*metaData = [routeSample metadata] ? [routeSample metadata] : @{};
-                    
+
                     NSDictionary *routeElem = @{
                         @"id" : [[routeSample UUID] UUIDString],
                         @"sourceId": [[[routeSample sourceRevision] source] bundleIdentifier],
                         @"sourceName" : [[[routeSample sourceRevision] source] name],
                         @"metadata" : metaData,
-                        @"device": device,
+                        @"device": deviceDict,
                         @"start": start,
                         @"end":end,
                         @"locations": locations
@@ -274,14 +272,14 @@
                             @"endDate" : endDateString,
                     }];
 
-                    NSString *deviceStr = @"";
-                    if (@available(iOS 11.0, *)) {
-                        deviceStr = [[sample sourceRevision] productType] ?: @"";
-                    } else {
-                        HKDevice *device = [sample device];
-                        deviceStr = [device name] ?: @"iPhone";
-                    }
-                    elem[@"device"] = deviceStr;
+                    HKDevice *dev = sample.device;
+                    NSDictionary *deviceDict = @{
+                        @"name":            dev.name            ?: [NSNull null],
+                        @"model":           dev.model           ?: [NSNull null],
+                        @"hardwareVersion": dev.hardwareVersion ?: [NSNull null],
+                        @"softwareVersion": dev.softwareVersion ?: [NSNull null],
+                    };
+                    elem[@"device"] = deviceDict;
 
                     NSDictionary *metadata = [sample metadata];
                     if (metadata) {
@@ -346,15 +344,13 @@
                                 isTracked = false;
                             }
 
-                            NSString* device = @"";
-                            if (@available(iOS 11.0, *)) {
-                                device = [[sample sourceRevision] productType];
-                            } else {
-                                device = [[sample device] name];
-                                if (!device) {
-                                    device = @"iPhone";
-                                }
-                            }
+                            HKDevice *dev = sample.device;
+                            NSDictionary *deviceDict = @{
+                                @"name":            dev.name            ?: [NSNull null],
+                                @"model":           dev.model           ?: [NSNull null],
+                                @"hardwareVersion": dev.hardwareVersion ?: [NSNull null],
+                                @"softwareVersion": dev.softwareVersion ?: [NSNull null],
+                            };
 
                             NSDictionary *elem = @{
                                                    @"activityId" : [NSNumber numberWithInt:[sample workoutActivityType]],
@@ -365,7 +361,7 @@
                                                    @"metadata" : [sample metadata] ? [sample metadata] : [NSNull null],
                                                    @"sourceName" : [[[sample sourceRevision] source] name],
                                                    @"sourceId" : [[[sample sourceRevision] source] bundleIdentifier],
-                                                   @"device": device,
+                                                   @"device": deviceDict,
                                                    @"distance" : @(distance),
                                                    @"start" : startDateString,
                                                    @"end" : endDateString
@@ -395,22 +391,20 @@
                                 isTracked = false;
                             }
 
-                            NSString* device = @"";
-                            if (@available(iOS 11.0, *)) {
-                                device = [[sample sourceRevision] productType];
-                            } else {
-                                device = [[sample device] name];
-                                if (!device) {
-                                    device = @"iPhone";
-                                }
-                            }
+                            HKDevice *dev = sample.device;
+                            NSDictionary *deviceDict = @{
+                                @"name":            dev.name            ?: [NSNull null],
+                                @"model":           dev.model           ?: [NSNull null],
+                                @"hardwareVersion": dev.hardwareVersion ?: [NSNull null],
+                                @"softwareVersion": dev.softwareVersion ?: [NSNull null],
+                            };
 
                             NSDictionary *elem = @{
                                                    valueType : @(value),
                                                    @"tracked" : @(isTracked),
                                                    @"sourceName" : [[[sample sourceRevision] source] name],
                                                    @"sourceId" : [[[sample sourceRevision] source] bundleIdentifier],
-                                                   @"device": device,
+                                                   @"device": deviceDict,
                                                    @"start" : startDateString,
                                                    @"end" : endDateString
                                                    };
@@ -540,12 +534,13 @@
                             isTracked = false;
                         }
 
-                        NSString* device = @"";
-                        if (@available(iOS 11.0, *)) {
-                            device = [[sample sourceRevision] productType] ?: @"";
-                        } else {
-                            device = [[sample device] name] ?: @"iPhone";
-                        }
+                        HKDevice *dev = sample.device;
+                        NSDictionary *deviceDict = @{
+                            @"name":            dev.name            ?: [NSNull null],
+                            @"model":           dev.model           ?: [NSNull null],
+                            @"hardwareVersion": dev.hardwareVersion ?: [NSNull null],
+                            @"softwareVersion": dev.softwareVersion ?: [NSNull null],
+                        };
 
                         NSDictionary *elem = @{
                                                @"activityId" : [NSNumber numberWithInt:[sample workoutActivityType]],
@@ -556,7 +551,7 @@
                                                @"metadata" : [sample metadata],
                                                @"sourceName" : [[[sample sourceRevision] source] name],
                                                @"sourceId" : [[[sample sourceRevision] source] bundleIdentifier],
-                                               @"device": device,
+                                               @"device": deviceDict,
                                                @"distance" : @(distance),
                                                @"start" : startDateString,
                                                @"end" : endDateString,
@@ -637,12 +632,13 @@
                     double value        = [sample.quantity doubleValueForUnit:unit];
                     NSString *startDate = [RCTAppleHealthKit buildISO8601StringFromDate:sample.startDate];
                     NSString *endDate   = [RCTAppleHealthKit buildISO8601StringFromDate:sample.endDate];
-                    NSString *device    = @"";
-                    if (@available(iOS 11.0, *)) {
-                        device = [[sample sourceRevision] productType] ?: @"";
-                    } else {
-                        device = [[sample device] name] ?: @"iPhone";
-                    }
+                    HKDevice *dev = sample.device;
+                    NSDictionary *deviceDict = @{
+                        @"name":            dev.name            ?: [NSNull null],
+                        @"model":           dev.model           ?: [NSNull null],
+                        @"hardwareVersion": dev.hardwareVersion ?: [NSNull null],
+                        @"softwareVersion": dev.softwareVersion ?: [NSNull null],
+                    };
                     [added addObject:@{
                         @"id":         [[sample UUID] UUIDString],
                         @"value":      @(value),
@@ -651,7 +647,7 @@
                         @"endDate":    endDate,
                         @"sourceName": [[[sample sourceRevision] source] name] ?: @"",
                         @"sourceId":   [[[sample sourceRevision] source] bundleIdentifier] ?: @"",
-                        @"device":     device,
+                        @"device":     deviceDict,
                         @"metadata":   sample.metadata ?: @{},
                     }];
                 } @catch (NSException *e) {
@@ -748,12 +744,13 @@
                         case HKCategoryValueSleepAnalysisAwake:      valueString = @"AWAKE";   break;
                         default:                                      valueString = @"UNKNOWN"; break;
                     }
-                    NSString *device = @"";
-                    if (@available(iOS 11.0, *)) {
-                        device = [[sample sourceRevision] productType] ?: @"";
-                    } else {
-                        device = [[sample device] name] ?: @"iPhone";
-                    }
+                    HKDevice *dev = sample.device;
+                    NSDictionary *deviceDict = @{
+                        @"name":            dev.name            ?: [NSNull null],
+                        @"model":           dev.model           ?: [NSNull null],
+                        @"hardwareVersion": dev.hardwareVersion ?: [NSNull null],
+                        @"softwareVersion": dev.softwareVersion ?: [NSNull null],
+                    };
                     [added addObject:@{
                         @"id":         [[sample UUID] UUIDString],
                         @"value":      valueString,
@@ -761,7 +758,7 @@
                         @"endDate":    [RCTAppleHealthKit buildISO8601StringFromDate:sample.endDate],
                         @"sourceName": [[[sample sourceRevision] source] name] ?: @"",
                         @"sourceId":   [[[sample sourceRevision] source] bundleIdentifier] ?: @"",
-                        @"device":     device,
+                        @"device":     deviceDict,
                         @"metadata":   sample.metadata ?: @{},
                     }];
                 } @catch (NSException *e) {
@@ -856,12 +853,13 @@
                         continue;
                     }
 
-                    NSString *device = @"";
-                    if (@available(iOS 11.0, *)) {
-                        device = [[sample sourceRevision] productType] ?: @"";
-                    } else {
-                        device = [[sample device] name] ?: @"iPhone";
-                    }
+                    HKDevice *dev = sample.device;
+                    NSDictionary *deviceDict = @{
+                        @"name":            dev.name            ?: [NSNull null],
+                        @"model":           dev.model           ?: [NSNull null],
+                        @"hardwareVersion": dev.hardwareVersion ?: [NSNull null],
+                        @"softwareVersion": dev.softwareVersion ?: [NSNull null],
+                    };
                     [added addObject:@{
                         @"id":                         [[sample UUID] UUIDString],
                         @"bloodPressureSystolicValue":  @([sys.quantity doubleValueForUnit:mmHg]),
@@ -870,7 +868,7 @@
                         @"endDate":    [RCTAppleHealthKit buildISO8601StringFromDate:sample.endDate],
                         @"sourceName": [[[sample sourceRevision] source] name] ?: @"",
                         @"sourceId":   [[[sample sourceRevision] source] bundleIdentifier] ?: @"",
-                        @"device":     device,
+                        @"device":     deviceDict,
                         @"metadata":   sample.metadata ?: @{},
                     }];
                 } @catch (NSException *e) {
@@ -977,12 +975,13 @@
                         fhirVersion = v.stringRepresentation ?: fhirVersion;
                     }
 
-                    NSString *device = @"";
-                    if (@available(iOS 11.0, *)) {
-                        device = [[record sourceRevision] productType] ?: @"";
-                    } else {
-                        device = [[record device] name] ?: @"iPhone";
-                    }
+                    HKDevice *dev = record.device;
+                    NSDictionary *deviceDict = @{
+                        @"name":            dev.name            ?: [NSNull null],
+                        @"model":           dev.model           ?: [NSNull null],
+                        @"hardwareVersion": dev.hardwareVersion ?: [NSNull null],
+                        @"softwareVersion": dev.softwareVersion ?: [NSNull null],
+                    };
 
                     [added addObject:@{
                         @"id":          [[record UUID] UUIDString],
@@ -994,7 +993,7 @@
                         @"endDate":     [RCTAppleHealthKit buildISO8601StringFromDate:record.endDate],
                         @"sourceName":  [[[record sourceRevision] source] name] ?: @"",
                         @"sourceId":    [[[record sourceRevision] source] bundleIdentifier] ?: @"",
-                        @"device":      device,
+                        @"device":      deviceDict,
                     }];
                 } @catch (NSException *e) {
                     NSLog(@"RNHealth: fetchAnchoredClinicalSamplesOfType: skipping record %@ (%@: %@)",
