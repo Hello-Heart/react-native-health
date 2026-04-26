@@ -922,18 +922,24 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
             return;
         }
 
-        [self.healthStore requestAuthorizationToShareTypes:writeDataTypes readTypes:readDataTypes completion:^(BOOL success, NSError *error) {
-            if (!success) {
-                NSString *errMsg = [NSString stringWithFormat:@"Error with HealthKit authorization: %@", error];
-                 NSLog(@"%@", errMsg);
-                callback(@[RCTMakeError(errMsg, nil, nil)]);
-                return;
-            } else {
-                dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-                    callback(@[[NSNull null], @true]);
-                });
-            }
-        }];
+        @try {
+            [self.healthStore requestAuthorizationToShareTypes:writeDataTypes readTypes:readDataTypes completion:^(BOOL success, NSError *error) {
+                if (!success) {
+                    NSString *errMsg = [NSString stringWithFormat:@"Error with HealthKit authorization: %@", error];
+                    NSLog(@"%@", errMsg);
+                    callback(@[RCTMakeError(errMsg, nil, nil)]);
+                    return;
+                } else {
+                    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+                        callback(@[[NSNull null], @true]);
+                    });
+                }
+            }];
+        } @catch (NSException *exception) {
+            NSString *errMsg = [NSString stringWithFormat:@"initHealthKit raised an exception: %@", exception.reason];
+            NSLog(@"%@", errMsg);
+            callback(@[RCTMakeError(errMsg, nil, nil)]);
+        }
     } else {
         callback(@[RCTMakeError(@"HealthKit data is not available", nil, nil)]);
     }
