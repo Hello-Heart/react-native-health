@@ -734,6 +734,7 @@
         dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
             NSMutableArray *added   = [NSMutableArray arrayWithCapacity:sampleObjects.count];
             NSMutableArray *deleted = [NSMutableArray arrayWithCapacity:deletedObjects.count];
+            NSUInteger serializationErrors = 0;
 
             for (HKCategorySample *sample in sampleObjects) {
                 @try {
@@ -766,6 +767,7 @@
                 } @catch (NSException *e) {
                     NSLog(@"RNHealth: fetchAnchoredCategorySamplesOfType: skipping sample %@ (%@: %@)",
                           [[sample UUID] UUIDString], e.name, e.reason);
+                    serializationErrors++;
                 }
             }
 
@@ -787,8 +789,16 @@
                 anchorString = [anchorData base64EncodedStringWithOptions:0];
             }
 
+            NSMutableDictionary *result = [@{
+                @"anchor":  anchorString,
+                @"added":   added,
+                @"deleted": deleted,
+            } mutableCopy];
+            if (serializationErrors > 0) {
+                result[@"serializationErrors"] = @(serializationErrors);
+            }
             if (completion) {
-                completion(@{ @"anchor": anchorString, @"added": added, @"deleted": deleted }, nil);
+                completion(result, nil);
             }
         });
     };
@@ -834,7 +844,7 @@
         dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
             NSMutableArray *added   = [NSMutableArray arrayWithCapacity:sampleObjects.count];
             NSMutableArray *deleted = [NSMutableArray arrayWithCapacity:deletedObjects.count];
-            NSUInteger skippedCount = 0;
+            NSUInteger serializationErrors = 0;
 
             for (HKCorrelation *sample in sampleObjects) {
                 @try {
@@ -842,7 +852,7 @@
                     HKQuantitySample *dia = [sample objectsForType:diastolicType].anyObject;
                     if (!sys || !dia) {
                         NSLog(@"RNHealth: fetchAnchoredCorrelationSamplesOfType: incomplete BP correlation (missing sys or dia), skipping id=%@", [[sample UUID] UUIDString]);
-                        skippedCount++;
+                        serializationErrors++;
                         continue;
                     }
 
@@ -866,6 +876,7 @@
                 } @catch (NSException *e) {
                     NSLog(@"RNHealth: fetchAnchoredCorrelationSamplesOfType: skipping sample %@ (%@: %@)",
                           [[sample UUID] UUIDString], e.name, e.reason);
+                    serializationErrors++;
                 }
             }
 
@@ -887,13 +898,16 @@
                 anchorString = [anchorData base64EncodedStringWithOptions:0];
             }
 
+            NSMutableDictionary *result = [@{
+                @"anchor":  anchorString,
+                @"added":   added,
+                @"deleted": deleted,
+            } mutableCopy];
+            if (serializationErrors > 0) {
+                result[@"serializationErrors"] = @(serializationErrors);
+            }
             if (completion) {
-                completion(@{
-                    @"anchor":       anchorString,
-                    @"added":        added,
-                    @"deleted":      deleted,
-                    @"skippedCount": @(skippedCount),
-                }, nil);
+                completion(result, nil);
             }
         });
     };
@@ -936,6 +950,7 @@
         dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
             NSMutableArray *added   = [NSMutableArray arrayWithCapacity:sampleObjects.count];
             NSMutableArray *deleted = [NSMutableArray arrayWithCapacity:deletedObjects.count];
+            NSUInteger serializationErrors = 0;
 
             for (HKClinicalRecord *record in sampleObjects) {
                 @try {
@@ -982,6 +997,7 @@
                 } @catch (NSException *e) {
                     NSLog(@"RNHealth: fetchAnchoredClinicalSamplesOfType: skipping record %@ (%@: %@)",
                           [[record UUID] UUIDString], e.name, e.reason);
+                    serializationErrors++;
                 }
             }
 
@@ -1003,8 +1019,16 @@
                 anchorString = [anchorData base64EncodedStringWithOptions:0];
             }
 
+            NSMutableDictionary *result = [@{
+                @"anchor":  anchorString,
+                @"added":   added,
+                @"deleted": deleted,
+            } mutableCopy];
+            if (serializationErrors > 0) {
+                result[@"serializationErrors"] = @(serializationErrors);
+            }
             if (completion) {
-                completion(@{ @"anchor": anchorString, @"added": added, @"deleted": deleted }, nil);
+                completion(result, nil);
             }
         });
     };
