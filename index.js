@@ -1,4 +1,4 @@
-import { Activities, Observers, Permissions, Units } from './src/constants'
+import { Activities, Observers, Periods, Permissions, SyncIntervals, Units } from './src/constants'
 import { Platform } from 'react-native'
 
 
@@ -37,6 +37,55 @@ export const HealthKit =
         getStepCount: AppleHealthKit.getStepCount,
         getSamples: AppleHealthKit.getSamples,
         getAnchoredWorkouts: AppleHealthKit.getAnchoredWorkouts,
+        configureBackgroundSync: AppleHealthKit.configureBackgroundSync,
+        getDeltaSamples: AppleHealthKit.getDeltaSamples,
+        getDeltaSamplesForPermissions: function(requests, callback) {
+          if (!requests || requests.length === 0) {
+            callback(null, {})
+            return
+          }
+
+          // Detect duplicate types up front — silent overwrite would lose data
+          const seenTypes = new Set()
+          for (const options of requests) {
+            if (options && options.type) {
+              if (seenTypes.has(options.type)) {
+                callback(new Error('getDeltaSamplesForPermissions: duplicate type "' + options.type + '" in requests array'), null)
+                return
+              }
+              seenTypes.add(options.type)
+            }
+          }
+
+          const results = {}
+          let pending = requests.length
+          let settled = false
+
+          requests.forEach(function(options) {
+            if (settled) return
+            if (!options.type || typeof options.type !== 'string' || options.type.length === 0) {
+              settled = true
+              callback(new Error('getDeltaSamplesForPermissions: missing required "type" field in request (expected non-empty string)'), null)
+              return
+            }
+            const type = options.type
+            AppleHealthKit.getDeltaSamples(options, function(err, result) {
+              if (settled) return
+              if (err) {
+                settled = true
+                callback(err, null)
+                return
+              }
+              results[type] = result
+              pending -= 1
+              if (pending === 0) {
+                settled = true
+                callback(null, results)
+              }
+            })
+          })
+        },
+        getStepCountSamples: AppleHealthKit.getStepCountSamples,
         getDailyStepCountSamples: AppleHealthKit.getDailyStepCountSamples,
         saveSteps: AppleHealthKit.saveSteps,
         saveWalkingRunningDistance: AppleHealthKit.saveWalkingRunningDistance,
@@ -117,7 +166,9 @@ export const HealthKit =
         Constants: {
           Activities,
           Observers,
+          Periods,
           Permissions,
+          SyncIntervals,
           Units,
         },
       }

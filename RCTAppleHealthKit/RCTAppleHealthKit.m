@@ -8,6 +8,8 @@
 
 #import "RCTAppleHealthKit.h"
 #import "RCTAppleHealthKit+TypesAndPermissions.h"
+#import "RCTAppleHealthKit+Utils.h"
+#import "RCTAppleHealthKit+Queries.h"
 
 #import "RCTAppleHealthKit+Methods_Activity.h"
 #import "RCTAppleHealthKit+Methods_Body.h"
@@ -77,7 +79,7 @@ RCT_EXPORT_METHOD(initHealthKit:(NSDictionary *)input callback:(RCTResponseSende
 RCT_EXPORT_METHOD(initStepCountObserver:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback)
 {
     [self _initializeHealthStore];
-    [self fitness_initializeStepEventObserver:input hasListeners:hasListeners callback:callback];
+    [self fitness_initializeStepEventObserver:input callback:callback];
 }
 
 RCT_EXPORT_METHOD(getBiologicalSex:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback)
@@ -248,6 +250,227 @@ RCT_EXPORT_METHOD(getAnchoredWorkouts:(NSDictionary *)input callback:(RCTRespons
     [self workout_getAnchoredQuery:input callback:callback];
 }
 
++ (NSTimeInterval)syncIntervalFromString:(NSString *)interval {
+    if ([interval isEqualToString:@"every1hour"])   return 3600.0;
+    if ([interval isEqualToString:@"every6hours"])  return 21600.0;
+    if ([interval isEqualToString:@"every12hours"]) return 43200.0;
+    if ([interval isEqualToString:@"every24hours"]) return 86400.0;
+    if ([interval isEqualToString:@"every48hours"]) return 172800.0;
+    if ([interval isEqualToString:@"everyweek"])    return 604800.0;
+    return 86400.0;
+}
+
+RCT_EXPORT_METHOD(configureBackgroundSync:(NSDictionary *)input)
+{
+    [self _initializeHealthStore];
+    // Default to NO (opt-in) to match observer behavior: "Defaults to disabled if the key
+    // was never written". Caller must explicitly pass enabled: true to enable background sync.
+    BOOL enabled = [input objectForKey:@"enabled"]
+        ? [[input objectForKey:@"enabled"] boolValue]
+        : NO;
+    [[NSUserDefaults standardUserDefaults] setBool:enabled forKey:@"RNHealth_SyncEnabled"];
+
+    // Always persist syncInterval so it survives enable/disable cycles.
+    // Stored even when disabled so re-enabling later uses the correct value.
+    NSString *interval = [input objectForKey:@"syncInterval"];
+    if (interval) {
+        NSTimeInterval seconds = [RCTAppleHealthKit syncIntervalFromString:interval];
+        [[NSUserDefaults standardUserDefaults] setDouble:seconds forKey:@"RNHealth_SyncInterval"];
+        NSLog(@"[HealthKit] Background sync %@, interval %.0fs", enabled ? @"enabled" : @"disabled", seconds);
+    } else {
+        NSLog(@"[HealthKit] Background sync %@", enabled ? @"enabled" : @"disabled");
+    }
+}
+
++ (NSDate *)startDateFromPeriod:(NSString *)period {
+    NSCalendar *cal = [NSCalendar currentCalendar];
+    NSDate *now     = [NSDate date];
+    if ([period isEqualToString:@"last24hours"]) {
+        return [cal dateByAddingUnit:NSCalendarUnitHour  value:-24  toDate:now options:0];
+    }
+    if ([period isEqualToString:@"today"]) {
+        return [cal startOfDayForDate:now];
+    }
+    if ([period isEqualToString:@"last7days"]) {
+        return [cal dateByAddingUnit:NSCalendarUnitDay   value:-7   toDate:now options:0];
+    }
+    if ([period isEqualToString:@"last30days"]) {
+        return [cal dateByAddingUnit:NSCalendarUnitDay   value:-30  toDate:now options:0];
+    }
+    if ([period isEqualToString:@"last3months"]) {
+        return [cal dateByAddingUnit:NSCalendarUnitMonth value:-3   toDate:now options:0];
+    }
+    if ([period isEqualToString:@"last6months"]) {
+        return [cal dateByAddingUnit:NSCalendarUnitMonth value:-6   toDate:now options:0];
+    }
+    if ([period isEqualToString:@"lastyear"]) {
+        return [cal dateByAddingUnit:NSCalendarUnitYear  value:-1   toDate:now options:0];
+    }
+    return nil;
+}
+
+RCT_EXPORT_METHOD(getDeltaSamples:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback)
+{
+    [self _initializeHealthStore];
+
+    NSString *type = [RCTAppleHealthKit stringFromOptions:input key:@"type" withDefault:@""];
+
+    // Validate required type field
+    if (!type || [type length] == 0) {
+        callback(@[RCTMakeError(@"getDeltaSamples: missing required 'type' field", nil, @{
+            @"expectedTypes": @[
+                @"HeartRate", @"RestingHeartRate", @"HeartRateVariabilitySDNN",
+                @"StepCount", @"Walking", @"Running", @"Cycling", @"StairClimbing", @"Swimming",
+                @"ActiveEnergyBurned", @"BasalEnergyBurned",
+                @"BodyMass", @"BodyMassIndex", @"Height", @"BodyFatPercentage",
+                @"OxygenSaturation", @"RespiratoryRate", @"BodyTemperature", @"BloodGlucose",
+                @"Vo2Max", @"InsulinDelivery", @"DietaryCholesterol",
+                @"SleepAnalysis", @"BloodPressure", @"Workout",
+                @"AllergyRecord", @"ConditionRecord", @"CoverageRecord", @"ImmunizationRecord",
+                @"LabResultRecord", @"MedicationRecord", @"ProcedureRecord", @"VitalSignRecord",
+            ],
+        })]);
+        return;
+    }
+
+    // Workout: delegate to existing anchored workout method unchanged
+    if ([type isEqualToString:@"Workout"]) {
+        [self workout_getAnchoredQuery:input callback:callback];
+        return;
+    }
+
+    HKQuantityType *quantityType = (HKQuantityType *)[RCTAppleHealthKit quantityTypeFromName:type];
+
+    // Shared params — resolved identically for all HK type families
+    HKQueryAnchor *anchor = [RCTAppleHealthKit hkAnchorFromOptions:input];
+    NSUInteger limit      = [RCTAppleHealthKit uintFromOptions:input key:@"limit" withDefault:HKObjectQueryNoLimit];
+    BOOL includeManuallyAdded = [RCTAppleHealthKit boolFromOptions:input key:@"includeManuallyAdded" withDefault:YES];
+
+    // Date range: explicit startDate wins; period string is the fallback.
+    // For anchored queries with no explicit date range, startDate stays nil to fetch true delta.
+    NSDate *startDate = [RCTAppleHealthKit dateFromOptions:input key:@"startDate" withDefault:nil];
+    NSString *periodString = [input objectForKey:@"period"];
+    if (startDate == nil && periodString.length) {
+        startDate = [RCTAppleHealthKit startDateFromPeriod:periodString];
+    }
+    // Only default to last24hours if not using anchor. Anchored queries with no explicit
+    // date range fetch true delta (all changes since anchor). Non-anchored queries default
+    // to last24hours for backwards compatibility.
+    if (startDate == nil && anchor == nil) {
+        startDate = [RCTAppleHealthKit startDateFromPeriod:@"last24hours"];
+    }
+    NSDate *endDate = [RCTAppleHealthKit dateFromOptions:input key:@"endDate" withDefault:[NSDate date]];
+
+    // Date predicate only applies to non-anchored queries. For anchored queries, HealthKit
+    // manages the window automatically from the anchor. Applying a date predicate to anchored
+    // queries silently drops samples between anchor and startDate, breaking incremental sync.
+    if (anchor != nil && (startDate != nil || periodString.length > 0)) {
+        NSLog(@"[HealthKit] getDeltaSamples: anchor takes precedence — startDate/period ignored when anchor is provided");
+    }
+    NSPredicate *predicate = nil;
+    if (anchor == nil) {
+        predicate = [RCTAppleHealthKit predicateForAnchoredQueries:anchor startDate:startDate endDate:endDate];
+    }
+
+    // ── Quantity types (HeartRate, Steps, Weight, SpO2, HRV, etc.) ─────────────
+    if (quantityType) {
+        HKUnit *unit;
+        NSString *unitString = [input objectForKey:@"unit"];
+        if (unitString.length) {
+            @try { unit = [HKUnit unitFromString:unitString]; }
+            @catch (NSException *e) { unit = [RCTAppleHealthKit defaultHKUnitForType:type]; }
+        } else {
+            unit = [RCTAppleHealthKit defaultHKUnitForType:type];
+        }
+
+        [self fetchAnchoredSamplesOfType:quantityType
+                                    unit:unit
+                               predicate:predicate
+                                  anchor:anchor
+                                   limit:limit
+                      includeManuallyAdded:includeManuallyAdded
+                              completion:^(NSDictionary *results, NSError *error) {
+            if (error) {
+                callback(@[RCTMakeError(@"getDeltaSamples error", error, @{
+                    @"code":   @(error.code),
+                    @"domain": error.domain ?: @"",
+                    @"type":   type,
+                })]);
+                return;
+            }
+            callback(@[[NSNull null], results]);
+        }];
+        return;
+    }
+
+    // ── Sleep (HKCategoryType) ─────────────────────────────────────────────────
+    if ([type isEqualToString:@"SleepAnalysis"]) {
+        HKCategoryType *categoryType = [HKObjectType categoryTypeForIdentifier:HKCategoryTypeIdentifierSleepAnalysis];
+        [self fetchAnchoredCategorySamplesOfType:categoryType
+                                       predicate:predicate
+                                          anchor:anchor
+                                           limit:limit
+                                      completion:^(NSDictionary *results, NSError *error) {
+            if (error) {
+                callback(@[RCTMakeError(@"getDeltaSamples error", error, @{
+                    @"code":   @(error.code),
+                    @"domain": error.domain ?: @"",
+                    @"type":   type,
+                })]);
+                return;
+            }
+            callback(@[[NSNull null], results]);
+        }];
+        return;
+    }
+
+    // ── BloodPressure (HKCorrelationType) ─────────────────────────────────────
+    if ([type isEqualToString:@"BloodPressure"]) {
+        HKCorrelationType *correlationType = [HKCorrelationType correlationTypeForIdentifier:HKCorrelationTypeIdentifierBloodPressure];
+        [self fetchAnchoredCorrelationSamplesOfType:correlationType
+                                          predicate:predicate
+                                             anchor:anchor
+                                              limit:limit
+                                         completion:^(NSDictionary *results, NSError *error) {
+            if (error) {
+                callback(@[RCTMakeError(@"getDeltaSamples error", error, @{
+                    @"code":   @(error.code),
+                    @"domain": error.domain ?: @"",
+                    @"type":   type,
+                })]);
+                return;
+            }
+            callback(@[[NSNull null], results]);
+        }];
+        return;
+    }
+
+    // ── Clinical / FHIR types (LabResultRecord, AllergyRecord, etc.) ──────────
+    if (@available(iOS 12.0, *)) {
+        HKClinicalType *clinicalType = (HKClinicalType *)[RCTAppleHealthKit clinicalTypeFromName:type];
+        if (clinicalType) {
+            [self fetchAnchoredClinicalSamplesOfType:clinicalType
+                                           predicate:predicate
+                                              anchor:anchor
+                                               limit:limit
+                                          completion:^(NSDictionary *results, NSError *error) {
+                if (error) {
+                    callback(@[RCTMakeError(@"getDeltaSamples error", error, @{
+                    @"code":   @(error.code),
+                    @"domain": error.domain ?: @"",
+                    @"type":   type,
+                })]);
+                    return;
+                }
+                callback(@[[NSNull null], results]);
+            }];
+            return;
+        }
+    }
+
+    callback(@[RCTMakeError(@"getDeltaSamples: unsupported type", nil, @{ @"type": type })]);
+}
+
 RCT_EXPORT_METHOD(getWorkoutRouteSamples:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback)
 {
     [self _initializeHealthStore];
@@ -258,6 +481,12 @@ RCT_EXPORT_METHOD(setObserver:(NSDictionary *)input)
 {
     [self _initializeHealthStore];
     [self fitness_setObserver:input];
+}
+
+RCT_EXPORT_METHOD(getStepCountSamples:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback)
+{
+    [self _initializeHealthStore];
+    [self fitness_getStepCountSamples:input callback:callback];
 }
 
 RCT_EXPORT_METHOD(getDailyStepCountSamples:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback)
@@ -693,18 +922,24 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
             return;
         }
 
-        [self.healthStore requestAuthorizationToShareTypes:writeDataTypes readTypes:readDataTypes completion:^(BOOL success, NSError *error) {
-            if (!success) {
-                NSString *errMsg = [NSString stringWithFormat:@"Error with HealthKit authorization: %@", error];
-                 NSLog(@"%@", errMsg);
-                callback(@[RCTMakeError(errMsg, nil, nil)]);
-                return;
-            } else {
-                dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-                    callback(@[[NSNull null], @true]);
-                });
-            }
-        }];
+        @try {
+            [self.healthStore requestAuthorizationToShareTypes:writeDataTypes readTypes:readDataTypes completion:^(BOOL success, NSError *error) {
+                if (!success) {
+                    NSString *errMsg = [NSString stringWithFormat:@"Error with HealthKit authorization: %@", error];
+                    NSLog(@"%@", errMsg);
+                    callback(@[RCTMakeError(errMsg, nil, nil)]);
+                    return;
+                } else {
+                    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+                        callback(@[[NSNull null], @true]);
+                    });
+                }
+            }];
+        } @catch (NSException *exception) {
+            NSString *errMsg = [NSString stringWithFormat:@"initHealthKit raised an exception: %@", exception.reason];
+            NSLog(@"%@", errMsg);
+            callback(@[RCTMakeError(errMsg, nil, nil)]);
+        }
     } else {
         callback(@[RCTMakeError(@"HealthKit data is not available", nil, nil)]);
     }
@@ -738,7 +973,7 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
         @"InsulinDelivery"
     ];
     
-    NSArray *templates = @[@"healthKit:%@:new", @"healthKit:%@:failure", @"healthKit:%@:enabled", @"healthKit:%@:sample", @"healthKit:%@:setup:success", @"healthKit:%@:setup:failure"];
+    NSArray *templates = @[@"healthKit:%@:new", @"healthKit:%@:failure", @"healthKit:%@:enabled", @"healthKit:%@:sample", @"healthKit:%@:setup:success", @"healthKit:%@:setup:failure", @"healthKit:%@:delta"];
     
     NSMutableArray *supportedEvents = [[NSMutableArray alloc] init];
 
@@ -836,9 +1071,9 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
         ];
 
         for(NSString * type in fitnessObservers) {
-            [self fitness_registerObserver:type bridge:bridge hasListeners:hasListeners];
+            [self fitness_registerObserver:type bridge:bridge];
         }
-        
+
         NSArray *clinicalObservers = @[
             @"AllergyRecord",
             @"ConditionRecord",
@@ -849,12 +1084,12 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
             @"ProcedureRecord",
             @"VitalSignRecord"
         ];
-        
+
         for(NSString * type in clinicalObservers) {
-            [self clinical_registerObserver:type bridge:bridge hasListeners:hasListeners];
+            [self clinical_registerObserver:type bridge:bridge];
         }
-        
-        [self results_registerObservers:bridge hasListeners:hasListeners];
+
+        [self results_registerObservers:bridge];
 
         NSLog(@"[HealthKit] Background observers added to the app");
         [self startObserving];
