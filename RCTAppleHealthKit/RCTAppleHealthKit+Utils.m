@@ -437,7 +437,8 @@ NSString * const kMetadataKey = @"metadata";
     if ([unitString isEqualToString:@"mgPerdL"]) {
          theUnit = [HKUnit unitFromString:@"mg/dL"];
     }
-    if ([unitString isEqualToString:@"mlPerKgMin"]) {
+    // "ml/kg/min" is the canonical form; "mlPerKgMin" kept for existing callers
+    if ([unitString isEqualToString:@"ml/kg/min"] || [unitString isEqualToString:@"mlPerKgMin"]) {
       HKUnit *ml = [HKUnit literUnitWithMetricPrefix:HKMetricPrefixMilli];
       HKUnit *kg = [HKUnit gramUnitWithMetricPrefix:HKMetricPrefixKilo];
       HKUnit *min = [HKUnit minuteUnit];
