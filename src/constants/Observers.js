@@ -8,8 +8,6 @@ export const Observers = {
   BasalEnergyBurned: 'BasalEnergyBurned',
   BloodGlucose: 'BloodGlucose',
   BloodPressure: 'BloodPressure',
-  BloodPressureDiastolic: 'BloodPressureDiastolic',
-  BloodPressureSystolic: 'BloodPressureSystolic',
   BodyFatPercentage: 'BodyFatPercentage',
   BodyMass: 'BodyMass',
   BodyMassIndex: 'BodyMassIndex',

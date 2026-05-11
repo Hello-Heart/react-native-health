@@ -1025,8 +1025,6 @@ declare module 'react-native-health' {
     BasalEnergyBurned = 'BasalEnergyBurned',
     BloodGlucose = 'BloodGlucose',
     BloodPressure = 'BloodPressure',
-    BloodPressureDiastolic = 'BloodPressureDiastolic',
-    BloodPressureSystolic = 'BloodPressureSystolic',
     BodyFatPercentage = 'BodyFatPercentage',
     BodyMass = 'BodyMass',
     BodyMassIndex = 'BodyMassIndex',

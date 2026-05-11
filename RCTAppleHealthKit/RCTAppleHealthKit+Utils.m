@@ -247,10 +247,6 @@ NSString * const kMetadataKey = @"metadata";
         return [HKObjectType quantityTypeForIdentifier:HKQuantityTypeIdentifierBodyTemperature];
     } else if ([type isEqual:@"BloodGlucose"]) {
         return [HKObjectType quantityTypeForIdentifier:HKQuantityTypeIdentifierBloodGlucose];
-    } else if ([type isEqual:@"BloodPressureSystolic"]) {
-        return [HKObjectType quantityTypeForIdentifier:HKQuantityTypeIdentifierBloodPressureSystolic];
-    } else if ([type isEqual:@"BloodPressureDiastolic"]) {
-        return [HKObjectType quantityTypeForIdentifier:HKQuantityTypeIdentifierBloodPressureDiastolic];
     } else if ([type isEqual:@"TotalCholesterol"]) {
         return [HKObjectType quantityTypeForIdentifier:HKQuantityTypeIdentifierTotalCholesterol];
     } else if ([type isEqual:@"HDLCholesterol"]) {
