@@ -259,6 +259,7 @@ RCT_EXPORT_METHOD(getAnchoredWorkouts:(NSDictionary *)input callback:(RCTRespons
     if ([interval isEqualToString:@"every24hours"]) return 86400.0;
     if ([interval isEqualToString:@"every48hours"]) return 172800.0;
     if ([interval isEqualToString:@"everyweek"])    return 604800.0;
+    NSLog(@"[HealthKit] syncInterval: unrecognized string '%@', falling back to 86400s", interval);
     return 86400.0;
 }
 
@@ -294,10 +295,14 @@ RCT_EXPORT_METHOD(configureBackgroundSync:(NSDictionary *)input)
     if (interval) {
         NSTimeInterval seconds;
         if ([interval isKindOfClass:[NSNumber class]]) {
-            // Clamp to 1s minimum — 0, negative, or NaN values are rejected.
-            seconds = MAX(1.0, [interval doubleValue]);
-        } else {
+            double raw = [interval doubleValue];
+            // Reject NaN/Infinity (isfinite), clamp negatives and zero to 1s.
+            seconds = (isfinite(raw) && raw > 0) ? raw : 1.0;
+        } else if ([interval isKindOfClass:[NSString class]]) {
             seconds = [RCTAppleHealthKit syncIntervalFromString:(NSString *)interval];
+        } else {
+            NSLog(@"[HealthKit] syncInterval: unexpected type %@, using default 86400s", NSStringFromClass([interval class]));
+            seconds = 86400.0;
         }
         [[NSUserDefaults standardUserDefaults] setDouble:seconds forKey:@"RNHealth_SyncInterval"];
         NSLog(@"[HealthKit] Background sync %@, interval %.0fs", enabled ? @"enabled" : @"disabled", seconds);
