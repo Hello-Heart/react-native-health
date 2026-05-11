@@ -951,6 +951,7 @@ declare module 'react-native-health' {
 
   export interface BackgroundSyncOptions {
     enabled?:      boolean
+    /** Positive finite seconds; zero, negative, NaN, or Infinity default to 86400s (24 hours). */
     syncInterval?: SyncInterval
   }
 
