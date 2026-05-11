@@ -502,6 +502,10 @@
     } else {
         sampleType = [RCTAppleHealthKit quantityTypeFromName:type];
     }
+    if (!sampleType) {
+        NSLog(@"[HealthKit] Skipping observer for unknown type: %@", type);
+        return;
+    }
     [self setObserverForType:sampleType type:type bridge:bridge];
 }
 
