@@ -29,6 +29,12 @@ Either a named alias or a raw **number of seconds**:
 | `'everyweek'` | 604800 |
 | `number` | any positive value, e.g. `60` for 1 minute |
 
+### Input validation
+
+- **Unrecognized string** — falls back to `86400s` (24 hours) and logs a warning.
+- **Invalid number** (zero, negative, NaN, Infinity) — clamped to `1s` minimum.
+- **Wrong type** (not string or number) — falls back to `86400s` and logs a warning.
+
 ## Examples
 
 ```js
