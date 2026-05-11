@@ -251,6 +251,7 @@ RCT_EXPORT_METHOD(getAnchoredWorkouts:(NSDictionary *)input callback:(RCTRespons
 }
 
 + (NSTimeInterval)syncIntervalFromString:(NSString *)interval {
+    if ([interval isEqualToString:@"every1minute"]) return 60.0;
     if ([interval isEqualToString:@"every1hour"])   return 3600.0;
     if ([interval isEqualToString:@"every6hours"])  return 21600.0;
     if ([interval isEqualToString:@"every12hours"]) return 43200.0;
