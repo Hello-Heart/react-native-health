@@ -327,7 +327,7 @@ NSString * const kMetadataKey = @"metadata";
         return [HKUnit gramUnitWithMetricPrefix:HKMetricPrefixKilo];
     }
     if ([type isEqual:@"BodyMassIndex"]) {
-        return [HKUnit unitFromString:@"kg/m^2"];
+        return [HKUnit countUnit];
     }
     if ([@[@"Height"] containsObject:type]) {
         return [HKUnit meterUnit];

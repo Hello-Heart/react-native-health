@@ -190,6 +190,14 @@
         return [HKObjectType quantityTypeForIdentifier:HKQuantityTypeIdentifierBloodGlucose];
     } else if ([@"InsulinDelivery" isEqualToString:key]) {
         return [HKObjectType quantityTypeForIdentifier:HKQuantityTypeIdentifierInsulinDelivery];
+    } else if ([@"TotalCholesterol" isEqualToString:key]) {
+        return [HKObjectType quantityTypeForIdentifier:HKQuantityTypeIdentifierTotalCholesterol];
+    } else if ([@"HDLCholesterol" isEqualToString:key]) {
+        return [HKObjectType quantityTypeForIdentifier:HKQuantityTypeIdentifierHDLCholesterol];
+    } else if ([@"LDLCholesterol" isEqualToString:key]) {
+        return [HKObjectType quantityTypeForIdentifier:HKQuantityTypeIdentifierLDLCholesterol];
+    } else if ([@"Triglycerides" isEqualToString:key]) {
+        return [HKObjectType quantityTypeForIdentifier:HKQuantityTypeIdentifierTriglycerides];
     }
 
     // Vital Signs Identifiers
@@ -419,6 +427,14 @@
         return [HKObjectType quantityTypeForIdentifier:HKQuantityTypeIdentifierBloodGlucose];
     } else if ([@"InsulinDelivery" isEqualToString:key]) {
         return [HKObjectType quantityTypeForIdentifier:HKQuantityTypeIdentifierInsulinDelivery];
+    } else if ([@"TotalCholesterol" isEqualToString:key]) {
+        return [HKObjectType quantityTypeForIdentifier:HKQuantityTypeIdentifierTotalCholesterol];
+    } else if ([@"HDLCholesterol" isEqualToString:key]) {
+        return [HKObjectType quantityTypeForIdentifier:HKQuantityTypeIdentifierHDLCholesterol];
+    } else if ([@"LDLCholesterol" isEqualToString:key]) {
+        return [HKObjectType quantityTypeForIdentifier:HKQuantityTypeIdentifierLDLCholesterol];
+    } else if ([@"Triglycerides" isEqualToString:key]) {
+        return [HKObjectType quantityTypeForIdentifier:HKQuantityTypeIdentifierTriglycerides];
     }
 
     // Sleep
