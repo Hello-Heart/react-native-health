@@ -1042,6 +1042,7 @@ declare module 'react-native-health' {
     LDLCholesterol = 'LDLCholesterol',
     LabResultRecord = 'LabResultRecord',
     MedicationRecord = 'MedicationRecord',
+    MindfulSession = 'MindfulSession',
     OxygenSaturation = 'OxygenSaturation',
     ProcedureRecord = 'ProcedureRecord',
     RespiratoryRate = 'RespiratoryRate',

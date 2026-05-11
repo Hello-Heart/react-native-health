@@ -20,6 +20,7 @@ export const Observers = {
   Height: 'Height',
   InsulinDelivery: 'InsulinDelivery',
   LDLCholesterol: 'LDLCholesterol',
+  MindfulSession: 'MindfulSession',
   OxygenSaturation: 'OxygenSaturation',
   RespiratoryRate: 'RespiratoryRate',
   RestingHeartRate: 'RestingHeartRate',
