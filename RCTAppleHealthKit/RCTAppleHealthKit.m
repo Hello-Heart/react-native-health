@@ -264,6 +264,20 @@ RCT_EXPORT_METHOD(getAnchoredWorkouts:(NSDictionary *)input callback:(RCTRespons
 RCT_EXPORT_METHOD(configureBackgroundSync:(NSDictionary *)input)
 {
     [self _initializeHealthStore];
+
+    // Lazily wire background observers the first time JS calls configureBackgroundSync.
+    // AppDelegate hooks (sourceURL:, RCTJavaScriptDidLoad) don't fire under Expo New Arch —
+    // this is the only guaranteed JS-reachable entry point on this setup.
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        if (self.bridge) {
+            NSLog(@"[HealthKit] configureBackgroundSync — lazily initializing background observers");
+            [self initializeBackgroundObservers:self.bridge];
+        } else {
+            NSLog(@"[HealthKit] configureBackgroundSync — WARNING: self.bridge is nil, observers NOT registered");
+        }
+    });
+
     // Default to NO (opt-in) to match observer behavior: "Defaults to disabled if the key
     // was never written". Caller must explicitly pass enabled: true to enable background sync.
     BOOL enabled = [input objectForKey:@"enabled"]
@@ -273,9 +287,15 @@ RCT_EXPORT_METHOD(configureBackgroundSync:(NSDictionary *)input)
 
     // Always persist syncInterval so it survives enable/disable cycles.
     // Stored even when disabled so re-enabling later uses the correct value.
-    NSString *interval = [input objectForKey:@"syncInterval"];
+    // Accepts either a named string alias ('every1hour', …) or a raw NSNumber of seconds.
+    id interval = [input objectForKey:@"syncInterval"];
     if (interval) {
-        NSTimeInterval seconds = [RCTAppleHealthKit syncIntervalFromString:interval];
+        NSTimeInterval seconds;
+        if ([interval isKindOfClass:[NSNumber class]]) {
+            seconds = [interval doubleValue];
+        } else {
+            seconds = [RCTAppleHealthKit syncIntervalFromString:(NSString *)interval];
+        }
         [[NSUserDefaults standardUserDefaults] setDouble:seconds forKey:@"RNHealth_SyncInterval"];
         NSLog(@"[HealthKit] Background sync %@, interval %.0fs", enabled ? @"enabled" : @"disabled", seconds);
     } else {
@@ -1102,12 +1122,13 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
 // Will be called when this module's first listener is added.
 -(void)startObserving {
     NSNotificationCenter *center = [NSNotificationCenter defaultCenter];
-        for (NSString *notificationName in [self supportedEvents]) {
-            [center addObserver:self
-                   selector:@selector(emitEventInternal:)
-                       name:notificationName
-                     object:nil];
-        }
+    [center removeObserver:self];
+    for (NSString *notificationName in [self supportedEvents]) {
+        [center addObserver:self
+               selector:@selector(emitEventInternal:)
+                   name:notificationName
+                 object:nil];
+    }
     self.hasListeners = YES;
 }
 

@@ -936,7 +936,10 @@ declare module 'react-native-health' {
     | 'last6months'
     | 'lastyear'
 
-  /** Minimum time between background delta fetches. Default: 'every24hours'. */
+  /**
+   * Minimum time between background delta fetches. Default: `'every24hours'`.
+   * Pass a named alias or a raw number of **seconds** (e.g. `60` for 1 minute).
+   */
   export type SyncInterval =
     | 'every1hour'
     | 'every6hours'
@@ -944,6 +947,7 @@ declare module 'react-native-health' {
     | 'every24hours'
     | 'every48hours'
     | 'everyweek'
+    | number
 
   export interface BackgroundSyncOptions {
     enabled?:      boolean
