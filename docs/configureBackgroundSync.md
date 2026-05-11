@@ -32,7 +32,7 @@ Either a named alias or a raw **number of seconds**:
 ### Input validation
 
 - **Unrecognized string** — falls back to `86400s` (24 hours) and logs a warning.
-- **Invalid number** (zero, negative, NaN, Infinity) — clamped to `1s` minimum.
+- **Invalid number** (zero, negative, NaN, Infinity) — defaults to `86400s` (24 hours).
 - **Wrong type** (not string or number) — falls back to `86400s` and logs a warning.
 
 ## Examples
