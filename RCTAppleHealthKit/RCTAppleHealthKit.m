@@ -31,7 +31,9 @@
 #import <React/RCTEventDispatcher.h>
 
 
-@implementation RCTAppleHealthKit
+@implementation RCTAppleHealthKit {
+    BOOL _observersInitialized;
+}
 
 bool hasListeners;
 
@@ -251,7 +253,6 @@ RCT_EXPORT_METHOD(getAnchoredWorkouts:(NSDictionary *)input callback:(RCTRespons
 }
 
 + (NSTimeInterval)syncIntervalFromString:(NSString *)interval {
-    if ([interval isEqualToString:@"every1minute"]) return 60.0;
     if ([interval isEqualToString:@"every1hour"])   return 3600.0;
     if ([interval isEqualToString:@"every6hours"])  return 21600.0;
     if ([interval isEqualToString:@"every12hours"]) return 43200.0;
@@ -268,15 +269,16 @@ RCT_EXPORT_METHOD(configureBackgroundSync:(NSDictionary *)input)
     // Lazily wire background observers the first time JS calls configureBackgroundSync.
     // AppDelegate hooks (sourceURL:, RCTJavaScriptDidLoad) don't fire under Expo New Arch —
     // this is the only guaranteed JS-reachable entry point on this setup.
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
+    // Uses a BOOL ivar (not dispatch_once) so a nil-bridge first call can retry on the next call.
+    if (!_observersInitialized) {
         if (self.bridge) {
             NSLog(@"[HealthKit] configureBackgroundSync — lazily initializing background observers");
             [self initializeBackgroundObservers:self.bridge];
+            _observersInitialized = YES;
         } else {
-            NSLog(@"[HealthKit] configureBackgroundSync — WARNING: self.bridge is nil, observers NOT registered");
+            NSLog(@"[HealthKit] configureBackgroundSync — WARNING: self.bridge is nil, observers NOT registered, will retry");
         }
-    });
+    }
 
     // Default to NO (opt-in) to match observer behavior: "Defaults to disabled if the key
     // was never written". Caller must explicitly pass enabled: true to enable background sync.
@@ -292,7 +294,8 @@ RCT_EXPORT_METHOD(configureBackgroundSync:(NSDictionary *)input)
     if (interval) {
         NSTimeInterval seconds;
         if ([interval isKindOfClass:[NSNumber class]]) {
-            seconds = [interval doubleValue];
+            // Clamp to 1s minimum — 0, negative, or NaN values are rejected.
+            seconds = MAX(1.0, [interval doubleValue]);
         } else {
             seconds = [RCTAppleHealthKit syncIntervalFromString:(NSString *)interval];
         }
