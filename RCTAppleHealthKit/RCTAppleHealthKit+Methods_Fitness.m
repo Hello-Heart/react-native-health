@@ -499,6 +499,8 @@
     HKSampleType *sampleType;
     if ([type isEqualToString:@"SleepAnalysis"]) {
         sampleType = [HKObjectType categoryTypeForIdentifier:HKCategoryTypeIdentifierSleepAnalysis];
+    } else if ([type isEqualToString:@"MindfulSession"]) {
+        sampleType = [HKObjectType categoryTypeForIdentifier:HKCategoryTypeIdentifierMindfulSession];
     } else {
         sampleType = [RCTAppleHealthKit quantityTypeFromName:type];
     }
