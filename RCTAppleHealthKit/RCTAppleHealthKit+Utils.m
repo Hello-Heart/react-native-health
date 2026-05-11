@@ -330,6 +330,9 @@ NSString * const kMetadataKey = @"metadata";
     if ([@[@"BodyMass", @"LeanBodyMass"] containsObject:type]) {
         return [HKUnit gramUnitWithMetricPrefix:HKMetricPrefixKilo];
     }
+    if ([type isEqual:@"BodyMassIndex"]) {
+        return [HKUnit unitFromString:@"kg/m^2"];
+    }
     if ([@[@"Height"] containsObject:type]) {
         return [HKUnit meterUnit];
     }
@@ -357,6 +360,9 @@ NSString * const kMetadataKey = @"metadata";
     }
     if ([type isEqual:@"DietaryCholesterol"]) {
         return [HKUnit gramUnitWithMetricPrefix:HKMetricPrefixMilli];
+    }
+    if ([@[@"TotalCholesterol", @"HDLCholesterol", @"LDLCholesterol", @"Triglycerides"] containsObject:type]) {
+        return [HKUnit unitFromString:@"mg/dL"];
     }
     if ([@[@"DietaryProtein", @"DietaryFatTotal",
             @"DietaryCarbohydrates", @"DietaryFiber", @"DietarySodium",
