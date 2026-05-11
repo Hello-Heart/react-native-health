@@ -1130,8 +1130,8 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
 // Will be called when this module's first listener is added.
 -(void)startObserving {
     NSNotificationCenter *center = [NSNotificationCenter defaultCenter];
-    [center removeObserver:self];
     for (NSString *notificationName in [self supportedEvents]) {
+        [center removeObserver:self name:notificationName object:nil];
         [center addObserver:self
                selector:@selector(emitEventInternal:)
                    name:notificationName
