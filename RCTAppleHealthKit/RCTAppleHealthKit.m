@@ -271,13 +271,15 @@ RCT_EXPORT_METHOD(configureBackgroundSync:(NSDictionary *)input)
     // AppDelegate hooks (sourceURL:, RCTJavaScriptDidLoad) don't fire under Expo New Arch —
     // this is the only guaranteed JS-reachable entry point on this setup.
     // Uses a BOOL ivar (not dispatch_once) so a nil-bridge first call can retry on the next call.
-    if (!_observersInitialized) {
-        if (self.bridge) {
-            NSLog(@"[HealthKit] configureBackgroundSync — lazily initializing background observers");
-            [self initializeBackgroundObservers:self.bridge];
-            _observersInitialized = YES;
-        } else {
-            NSLog(@"[HealthKit] configureBackgroundSync — WARNING: self.bridge is nil, observers NOT registered, will retry");
+    @synchronized(self) {
+        if (!_observersInitialized) {
+            if (self.bridge) {
+                NSLog(@"[HealthKit] configureBackgroundSync — lazily initializing background observers");
+                [self initializeBackgroundObservers:self.bridge];
+                _observersInitialized = YES;
+            } else {
+                NSLog(@"[HealthKit] configureBackgroundSync — WARNING: self.bridge is nil, observers NOT registered, will retry");
+            }
         }
     }
 
