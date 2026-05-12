@@ -29,9 +29,13 @@
 
 #import <React/RCTBridgeModule.h>
 #import <React/RCTEventDispatcher.h>
+#import <os/lock.h>
 
 
-@implementation RCTAppleHealthKit
+@implementation RCTAppleHealthKit {
+    BOOL _observersInitialized;
+    os_unfair_lock _initLock;
+}
 
 bool hasListeners;
 
@@ -257,12 +261,30 @@ RCT_EXPORT_METHOD(getAnchoredWorkouts:(NSDictionary *)input callback:(RCTRespons
     if ([interval isEqualToString:@"every24hours"]) return 86400.0;
     if ([interval isEqualToString:@"every48hours"]) return 172800.0;
     if ([interval isEqualToString:@"everyweek"])    return 604800.0;
+    NSLog(@"[HealthKit] syncInterval: unrecognized string '%@', falling back to 86400s", interval);
     return 86400.0;
 }
 
 RCT_EXPORT_METHOD(configureBackgroundSync:(NSDictionary *)input)
 {
     [self _initializeHealthStore];
+
+    // Lazily wire background observers the first time JS calls configureBackgroundSync.
+    // AppDelegate hooks (sourceURL:, RCTJavaScriptDidLoad) don't fire under Expo New Arch —
+    // this is the only guaranteed JS-reachable entry point on this setup.
+    // Uses a BOOL ivar (not dispatch_once) so a nil-bridge first call can retry on the next call.
+    os_unfair_lock_lock(&_initLock);
+    if (!_observersInitialized) {
+        if (self.bridge) {
+            NSLog(@"[HealthKit] configureBackgroundSync — lazily initializing background observers");
+            [self initializeBackgroundObservers:self.bridge];
+            _observersInitialized = YES;
+        } else {
+            NSLog(@"[HealthKit] configureBackgroundSync — WARNING: self.bridge is nil, observers NOT registered, will retry");
+        }
+    }
+    os_unfair_lock_unlock(&_initLock);
+
     // Default to NO (opt-in) to match observer behavior: "Defaults to disabled if the key
     // was never written". Caller must explicitly pass enabled: true to enable background sync.
     BOOL enabled = [input objectForKey:@"enabled"]
@@ -272,9 +294,21 @@ RCT_EXPORT_METHOD(configureBackgroundSync:(NSDictionary *)input)
 
     // Always persist syncInterval so it survives enable/disable cycles.
     // Stored even when disabled so re-enabling later uses the correct value.
-    NSString *interval = [input objectForKey:@"syncInterval"];
+    // Accepts either a named string alias ('every1hour', …) or a raw NSNumber of seconds.
+    id interval = [input objectForKey:@"syncInterval"];
     if (interval) {
-        NSTimeInterval seconds = [RCTAppleHealthKit syncIntervalFromString:interval];
+        NSTimeInterval seconds;
+        if ([interval isKindOfClass:[NSNumber class]]) {
+            double raw = [interval doubleValue];
+            // Round floats to nearest integer, clamp to 1s minimum.
+            // Non-finite, zero, or negative values fall back to 24h default.
+            seconds = (isfinite(raw) && raw > 0) ? MAX(1.0, round(raw)) : 86400.0;
+        } else if ([interval isKindOfClass:[NSString class]]) {
+            seconds = [RCTAppleHealthKit syncIntervalFromString:(NSString *)interval];
+        } else {
+            NSLog(@"[HealthKit] syncInterval: unexpected type %@, using default 86400s", NSStringFromClass([interval class]));
+            seconds = 86400.0;
+        }
         [[NSUserDefaults standardUserDefaults] setDouble:seconds forKey:@"RNHealth_SyncInterval"];
         NSLog(@"[HealthKit] Background sync %@, interval %.0fs", enabled ? @"enabled" : @"disabled", seconds);
     } else {
@@ -1101,12 +1135,13 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
 // Will be called when this module's first listener is added.
 -(void)startObserving {
     NSNotificationCenter *center = [NSNotificationCenter defaultCenter];
-        for (NSString *notificationName in [self supportedEvents]) {
-            [center addObserver:self
-                   selector:@selector(emitEventInternal:)
-                       name:notificationName
-                     object:nil];
-        }
+    for (NSString *notificationName in [self supportedEvents]) {
+        [center removeObserver:self name:notificationName object:nil];
+        [center addObserver:self
+               selector:@selector(emitEventInternal:)
+                   name:notificationName
+                 object:nil];
+    }
     self.hasListeners = YES;
 }
 
