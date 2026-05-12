@@ -29,10 +29,12 @@
 
 #import <React/RCTBridgeModule.h>
 #import <React/RCTEventDispatcher.h>
+#import <os/lock.h>
 
 
 @implementation RCTAppleHealthKit {
     BOOL _observersInitialized;
+    os_unfair_lock _initLock;
 }
 
 bool hasListeners;
@@ -271,17 +273,17 @@ RCT_EXPORT_METHOD(configureBackgroundSync:(NSDictionary *)input)
     // AppDelegate hooks (sourceURL:, RCTJavaScriptDidLoad) don't fire under Expo New Arch —
     // this is the only guaranteed JS-reachable entry point on this setup.
     // Uses a BOOL ivar (not dispatch_once) so a nil-bridge first call can retry on the next call.
-    @synchronized(self) {
-        if (!_observersInitialized) {
-            if (self.bridge) {
-                NSLog(@"[HealthKit] configureBackgroundSync — lazily initializing background observers");
-                [self initializeBackgroundObservers:self.bridge];
-                _observersInitialized = YES;
-            } else {
-                NSLog(@"[HealthKit] configureBackgroundSync — WARNING: self.bridge is nil, observers NOT registered, will retry");
-            }
+    os_unfair_lock_lock(&_initLock);
+    if (!_observersInitialized) {
+        if (self.bridge) {
+            NSLog(@"[HealthKit] configureBackgroundSync — lazily initializing background observers");
+            [self initializeBackgroundObservers:self.bridge];
+            _observersInitialized = YES;
+        } else {
+            NSLog(@"[HealthKit] configureBackgroundSync — WARNING: self.bridge is nil, observers NOT registered, will retry");
         }
     }
+    os_unfair_lock_unlock(&_initLock);
 
     // Default to NO (opt-in) to match observer behavior: "Defaults to disabled if the key
     // was never written". Caller must explicitly pass enabled: true to enable background sync.
