@@ -296,8 +296,9 @@ RCT_EXPORT_METHOD(configureBackgroundSync:(NSDictionary *)input)
         NSTimeInterval seconds;
         if ([interval isKindOfClass:[NSNumber class]]) {
             double raw = [interval doubleValue];
-            // Reject NaN/Infinity/zero/negative — fall back to 24h default.
-            seconds = (isfinite(raw) && raw > 0) ? raw : 86400.0;
+            // Round floats to nearest integer, clamp to 1s minimum.
+            // Non-finite, zero, or negative values fall back to 24h default.
+            seconds = (isfinite(raw) && raw > 0) ? MAX(1.0, round(raw)) : 86400.0;
         } else if ([interval isKindOfClass:[NSString class]]) {
             seconds = [RCTAppleHealthKit syncIntervalFromString:(NSString *)interval];
         } else {

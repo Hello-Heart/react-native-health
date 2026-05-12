@@ -27,11 +27,12 @@ Either a named alias or a raw **number of seconds**:
 | `'every24hours'` | 86400 |
 | `'every48hours'` | 172800 |
 | `'everyweek'` | 604800 |
-| `number` | any positive value, e.g. `60` for 1 minute |
+| `number` | positive seconds, e.g. `60` for 1 minute; floats are rounded to nearest integer |
 
 ### Input validation
 
 - **Unrecognized string** — falls back to `86400s` (24 hours) and logs a warning.
+- **Float** — rounded to nearest integer, minimum `1s` (e.g. `1.5` → `2`, `0.3` → `1`).
 - **Invalid number** (zero, negative, NaN, Infinity) — defaults to `86400s` (24 hours).
 - **Wrong type** (not string or number) — falls back to `86400s` and logs a warning.
 
