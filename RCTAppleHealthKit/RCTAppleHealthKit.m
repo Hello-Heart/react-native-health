@@ -1146,7 +1146,7 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
 }
 
 - (void)emitEventInternal:(NSNotification *)notification {
-  if (self.hasListeners) {
+  if (self.hasListeners && self.bridge) {
     self.callableJSModules = [RCTAppleHealthKit sharedJsModule];
     [self.callableJSModules setBridge:self.bridge];
     [self sendEventWithName:notification.name
