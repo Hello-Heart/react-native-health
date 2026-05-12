@@ -1081,9 +1081,12 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
  */
   - (void)initializeBackgroundObservers:(RCTBridge *)bridge
 {
+    if (_observersInitialized) return;
+    _observersInitialized = YES;
+
     [self _initializeHealthStore];
 
-    self.bridge = bridge;
+    if (bridge) self.bridge = bridge;
 
     if ([HKHealthStore isHealthDataAvailable]) {
         NSArray *fitnessObservers = @[
