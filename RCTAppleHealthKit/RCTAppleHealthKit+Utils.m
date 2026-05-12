@@ -358,91 +358,74 @@ NSString * const kMetadataKey = @"metadata";
     return [HKUnit countUnit];
 }
 
++ (NSString *)normalizeUnitString:(NSString *)unitString {
+    if ([unitString isEqualToString:@"mL/(kg·min)"] ||
+        [unitString isEqualToString:@"ml/(kg*min)"]) {
+        return @"ml/kg/min";
+    }
+    return unitString;
+}
+
 + (HKUnit *)hkUnitFromOptions:(NSDictionary *)options key:(NSString *)key withDefault:(HKUnit *)defaultValue {
     NSString *unitString = [options objectForKey:key];
     HKUnit *theUnit;
 
     if ([unitString isEqualToString:@"gram"]) {
          theUnit = [HKUnit gramUnit];
-    }
-    if ([unitString isEqualToString:@"kg"]) {
+    } else if ([unitString isEqualToString:@"kg"]) {
          theUnit = [HKUnit gramUnitWithMetricPrefix:HKMetricPrefixKilo];
-    }
-    if ([unitString isEqualToString:@"stone"]) {
+    } else if ([unitString isEqualToString:@"stone"]) {
          theUnit = [HKUnit stoneUnit];
-    }
-    if ([unitString isEqualToString:@"pound"]) {
+    } else if ([unitString isEqualToString:@"pound"]) {
          theUnit = [HKUnit poundUnit];
-    }
-    if ([unitString isEqualToString:@"meter"]) {
+    } else if ([unitString isEqualToString:@"meter"]) {
          theUnit = [HKUnit meterUnit];
-    }
-    if ([unitString isEqualToString:@"cm"]) {
+    } else if ([unitString isEqualToString:@"cm"]) {
          theUnit = [HKUnit meterUnitWithMetricPrefix:HKMetricPrefixCenti];
-    }
-    if ([unitString isEqualToString:@"inch"]) {
+    } else if ([unitString isEqualToString:@"inch"]) {
          theUnit = [HKUnit inchUnit];
-    }
-    if ([unitString isEqualToString:@"mile"]) {
+    } else if ([unitString isEqualToString:@"mile"]) {
          theUnit = [HKUnit mileUnit];
-    }
-    if ([unitString isEqualToString:@"foot"]) {
+    } else if ([unitString isEqualToString:@"foot"]) {
          theUnit = [HKUnit footUnit];
-    }
-    if ([unitString isEqualToString:@"second"]) {
+    } else if ([unitString isEqualToString:@"second"]) {
          theUnit = [HKUnit secondUnit];
-    }
-    if ([unitString isEqualToString:@"minute"]) {
+    } else if ([unitString isEqualToString:@"minute"]) {
          theUnit = [HKUnit minuteUnit];
-    }
-    if ([unitString isEqualToString:@"hour"]) {
+    } else if ([unitString isEqualToString:@"hour"]) {
          theUnit = [HKUnit hourUnit];
-    }
-    if ([unitString isEqualToString:@"day"]) {
+    } else if ([unitString isEqualToString:@"day"]) {
          theUnit = [HKUnit dayUnit];
-    }
-    if ([unitString isEqualToString:@"joule"]) {
+    } else if ([unitString isEqualToString:@"joule"]) {
          theUnit = [HKUnit jouleUnit];
-    }
-    if ([unitString isEqualToString:@"calorie"]) {
+    } else if ([unitString isEqualToString:@"calorie"]) {
          theUnit = [HKUnit calorieUnit];
-    }
-    if ([unitString isEqualToString:@"count"]) {
+    } else if ([unitString isEqualToString:@"count"]) {
          theUnit = [HKUnit countUnit];
-    }
-    if ([unitString isEqualToString:@"percent"]) {
+    } else if ([unitString isEqualToString:@"percent"]) {
          theUnit = [HKUnit percentUnit];
-    }
-    if ([unitString isEqualToString:@"bpm"]) {
+    } else if ([unitString isEqualToString:@"bpm"]) {
          HKUnit *count = [HKUnit countUnit];
          HKUnit *minute = [HKUnit minuteUnit];
-
          theUnit = [count unitDividedByUnit:minute];
-    }
-    if ([unitString isEqualToString:@"fahrenheit"]) {
+    } else if ([unitString isEqualToString:@"fahrenheit"]) {
          theUnit = [HKUnit degreeFahrenheitUnit];
-    }
-    if ([unitString isEqualToString:@"celsius"]) {
+    } else if ([unitString isEqualToString:@"celsius"]) {
          theUnit = [HKUnit degreeCelsiusUnit];
-    }
-    if ([unitString isEqualToString:@"mmhg"]) {
+    } else if ([unitString isEqualToString:@"mmhg"]) {
          theUnit = [HKUnit millimeterOfMercuryUnit];
-    }
-    if ([unitString isEqualToString:@"mmolPerL"]) {
+    } else if ([unitString isEqualToString:@"mmolPerL"]) {
          theUnit = [[HKUnit moleUnitWithMetricPrefix:HKMetricPrefixMilli molarMass:HKUnitMolarMassBloodGlucose] unitDividedByUnit:[HKUnit literUnit]];
-    }
-    if ([unitString isEqualToString:@"literPerMinute"]) {
+    } else if ([unitString isEqualToString:@"literPerMinute"]) {
          theUnit = [[HKUnit literUnit] unitDividedByUnit:[HKUnit minuteUnit]];
-    }
-    if ([unitString isEqualToString:@"mgPerdL"]) {
+    } else if ([unitString isEqualToString:@"mgPerdL"]) {
          theUnit = [HKUnit unitFromString:@"mg/dL"];
-    }
-    // "ml/kg/min" is the canonical form; "mlPerKgMin" kept for existing callers
-    if ([unitString isEqualToString:@"ml/kg/min"] || [unitString isEqualToString:@"mlPerKgMin"]) {
-      HKUnit *ml = [HKUnit literUnitWithMetricPrefix:HKMetricPrefixMilli];
-      HKUnit *kg = [HKUnit gramUnitWithMetricPrefix:HKMetricPrefixKilo];
-      HKUnit *min = [HKUnit minuteUnit];
-      theUnit = [ml unitDividedByUnit:[kg unitMultipliedByUnit:min]];
+    } else if ([unitString isEqualToString:@"ml/kg/min"] || [unitString isEqualToString:@"mlPerKgMin"]) {
+        // "ml/kg/min" is the canonical form; "mlPerKgMin" kept for existing callers
+        HKUnit *ml = [HKUnit literUnitWithMetricPrefix:HKMetricPrefixMilli];
+        HKUnit *kg = [HKUnit gramUnitWithMetricPrefix:HKMetricPrefixKilo];
+        HKUnit *min = [HKUnit minuteUnit];
+        theUnit = [ml unitDividedByUnit:[kg unitMultipliedByUnit:min]];
     }
 
     if(theUnit == nil){

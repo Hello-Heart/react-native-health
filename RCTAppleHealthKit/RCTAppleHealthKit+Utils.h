@@ -28,6 +28,7 @@ extern NSString * const kMetadataKey;
 + (HKSampleType *)quantityTypeFromName:(NSString *)type;
 + (HKSampleType *)clinicalTypeFromName:(NSString *)type;
 + (HKQueryAnchor *)hkAnchorFromOptions:(NSDictionary *)options;
++ (NSString *)normalizeUnitString:(NSString *)unitString;
 + (HKUnit *)hkUnitFromOptions:(NSDictionary *)options key:(NSString *)key withDefault:(HKUnit *)defaultValue;
 + (HKUnit *)defaultHKUnitForType:(NSString *)type;
 + (NSUInteger)uintFromOptions:(NSDictionary *)options key:(NSString *)key withDefault:(NSUInteger)defaultValue;

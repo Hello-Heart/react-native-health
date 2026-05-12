@@ -257,12 +257,7 @@
                     }
                     HKQuantity *quantity = sample.quantity;
                     double value = [quantity doubleValueForUnit:unit];
-                    NSString *unitString = [unit unitString];
-                    // Normalise Vo2Max UCUM string to SDK convention
-                    if ([unitString isEqualToString:@"mL/(kg·min)"] ||
-                        [unitString isEqualToString:@"ml/(kg*min)"]) {
-                        unitString = @"ml/kg/min";
-                    }
+                    NSString *unitString = [RCTAppleHealthKit normalizeUnitString:[unit unitString]];
 
                     NSString *startDateString = [RCTAppleHealthKit buildISO8601StringFromDate:sample.startDate];
                     NSString *endDateString = [RCTAppleHealthKit buildISO8601StringFromDate:sample.endDate];
@@ -637,12 +632,7 @@
                     double value        = [sample.quantity doubleValueForUnit:unit];
                     NSString *startDate = [RCTAppleHealthKit buildISO8601StringFromDate:sample.startDate];
                     NSString *endDate   = [RCTAppleHealthKit buildISO8601StringFromDate:sample.endDate];
-                    NSString *unitString = [unit unitString];
-                    // Normalise Vo2Max UCUM string to SDK convention
-                    if ([unitString isEqualToString:@"mL/(kg·min)"] ||
-                        [unitString isEqualToString:@"ml/(kg*min)"]) {
-                        unitString = @"ml/kg/min";
-                    }
+                    NSString *unitString = [RCTAppleHealthKit normalizeUnitString:[unit unitString]];
                     HKDevice *dev = sample.device;
                     NSDictionary *deviceDict = @{
                         @"name":            dev.model                               ?: [NSNull null],
