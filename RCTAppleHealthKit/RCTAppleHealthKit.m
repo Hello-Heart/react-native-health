@@ -1097,7 +1097,8 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
 }
 
 - (void)initializeBackgroundObservers:(RCTBridge *)bridge {
-    [self initializeBackgroundObservers:bridge metrics:nil];
+    NSArray *savedMetrics = [[NSUserDefaults standardUserDefaults] objectForKey:@"RNHealth_SyncMetrics"];
+    [self initializeBackgroundObservers:bridge metrics:savedMetrics];
 }
 
 - (void)initializeBackgroundObservers:(RCTBridge *)bridge metrics:(NSArray<NSString *> *)metrics {
@@ -1106,7 +1107,6 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
         os_unfair_lock_unlock(&_initLock);
         return;
     }
-    _observersInitialized = YES;
     os_unfair_lock_unlock(&_initLock);
 
     [self _initializeHealthStore];
@@ -1139,7 +1139,11 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
             NSMutableSet *requestedHKTypes = [NSMutableSet set];
             for (NSString *metric in metrics) {
                 NSString *hkType = map[metric];
-                if (hkType) [requestedHKTypes addObject:hkType];
+                if (hkType) {
+                    [requestedHKTypes addObject:hkType];
+                } else {
+                    NSLog(@"[HealthKit] Unknown metric '%@' — not in healthMetricToHKTypeMap, skipping", metric);
+                }
             }
             fitnessToRegister = [allFitnessObservers filteredArrayUsingPredicate:
                 [NSPredicate predicateWithBlock:^BOOL(NSString *type, NSDictionary *_) {
@@ -1178,6 +1182,10 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
     } else {
         NSLog(@"[HealthKit] Apple HealthKit is not available in this platform");
     }
+
+    os_unfair_lock_lock(&_initLock);
+    _observersInitialized = YES;
+    os_unfair_lock_unlock(&_initLock);
 }
 
 // Will be called when this module's first listener is added.
