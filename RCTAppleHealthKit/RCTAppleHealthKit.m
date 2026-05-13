@@ -273,17 +273,20 @@ RCT_EXPORT_METHOD(configureBackgroundSync:(NSDictionary *)input)
     // AppDelegate hooks (sourceURL:, RCTJavaScriptDidLoad) don't fire under Expo New Arch —
     // this is the only guaranteed JS-reachable entry point on this setup.
     // Uses a BOOL ivar (not dispatch_once) so a nil-bridge first call can retry on the next call.
-    os_unfair_lock_lock(&_initLock);
-    if (!_observersInitialized) {
-        if (self.bridge) {
-            NSLog(@"[HealthKit] configureBackgroundSync — lazily initializing background observers");
-            [self initializeBackgroundObservers:self.bridge];
-            _observersInitialized = YES;
-        } else {
-            NSLog(@"[HealthKit] configureBackgroundSync — WARNING: self.bridge is nil, observers NOT registered, will retry");
-        }
+    // Persist metrics list so AppDelegate can re-register the same types on killed-state launch.
+    NSArray *metrics = [input objectForKey:@"metrics"];
+    if (metrics.count > 0) {
+        [[NSUserDefaults standardUserDefaults] setObject:metrics forKey:@"RNHealth_SyncMetrics"];
+    } else {
+        [[NSUserDefaults standardUserDefaults] removeObjectForKey:@"RNHealth_SyncMetrics"];
     }
-    os_unfair_lock_unlock(&_initLock);
+
+    if (self.bridge) {
+        NSLog(@"[HealthKit] configureBackgroundSync — initializing background observers");
+        [self initializeBackgroundObservers:self.bridge metrics:metrics];
+    } else {
+        NSLog(@"[HealthKit] configureBackgroundSync — WARNING: self.bridge is nil, observers NOT registered, will retry");
+    }
 
     // Default to NO (opt-in) to match observer behavior: "Defaults to disabled if the key
     // was never written". Caller must explicitly pass enabled: true to enable background sync.
@@ -1079,17 +1082,39 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
 
     This method must be called at the application:didFinishLaunchingWithOptions: method, in AppDelegate.m
  */
-  - (void)initializeBackgroundObservers:(RCTBridge *)bridge
-{
-    if (_observersInitialized) return;
+// Maps @helloheart/core HealthMetric enum values to native HK type strings.
+// Only includes types present in allFitnessObservers — others are silently ignored.
++ (NSDictionary<NSString *, NSString *> *)healthMetricToHKTypeMap {
+    return @{
+        @"heartRate":        @"HeartRate",
+        @"restingHeartRate": @"RestingHeartRate",
+        @"hrv":              @"HeartRateVariabilitySDNN",
+        @"steps":            @"StepCount",
+        @"activeEnergy":     @"ActiveEnergyBurned",
+        @"sleep":            @"SleepAnalysis",
+        @"vo2Max":           @"Vo2Max",
+    };
+}
+
+- (void)initializeBackgroundObservers:(RCTBridge *)bridge {
+    [self initializeBackgroundObservers:bridge metrics:nil];
+}
+
+- (void)initializeBackgroundObservers:(RCTBridge *)bridge metrics:(NSArray<NSString *> *)metrics {
+    os_unfair_lock_lock(&_initLock);
+    if (_observersInitialized) {
+        os_unfair_lock_unlock(&_initLock);
+        return;
+    }
     _observersInitialized = YES;
+    os_unfair_lock_unlock(&_initLock);
 
     [self _initializeHealthStore];
 
     if (bridge) self.bridge = bridge;
 
     if ([HKHealthStore isHealthDataAvailable]) {
-        NSArray *fitnessObservers = @[
+        NSArray *allFitnessObservers = @[
             @"ActiveEnergyBurned",
             @"BasalEnergyBurned",
             @"Cycling",
@@ -1107,7 +1132,27 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
             @"SleepAnalysis",
         ];
 
-        for(NSString * type in fitnessObservers) {
+        NSArray *fitnessToRegister;
+        if (metrics.count > 0) {
+            // Convert JS HealthMetric values → native HK type strings
+            NSDictionary *map = [RCTAppleHealthKit healthMetricToHKTypeMap];
+            NSMutableSet *requestedHKTypes = [NSMutableSet set];
+            for (NSString *metric in metrics) {
+                NSString *hkType = map[metric];
+                if (hkType) [requestedHKTypes addObject:hkType];
+            }
+            fitnessToRegister = [allFitnessObservers filteredArrayUsingPredicate:
+                [NSPredicate predicateWithBlock:^BOOL(NSString *type, NSDictionary *_) {
+                    return [requestedHKTypes containsObject:type];
+                }]];
+            NSLog(@"[HealthKit] Registering observers for %lu metrics: %@",
+                  (unsigned long)fitnessToRegister.count,
+                  [fitnessToRegister componentsJoinedByString:@", "]);
+        } else {
+            fitnessToRegister = allFitnessObservers;
+        }
+
+        for (NSString *type in fitnessToRegister) {
             [self fitness_registerObserver:type bridge:bridge];
         }
 
@@ -1122,7 +1167,7 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
             @"VitalSignRecord"
         ];
 
-        for(NSString * type in clinicalObservers) {
+        for (NSString *type in clinicalObservers) {
             [self clinical_registerObserver:type bridge:bridge];
         }
 
