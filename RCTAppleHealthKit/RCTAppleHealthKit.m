@@ -1107,7 +1107,6 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
         os_unfair_lock_unlock(&_initLock);
         return;
     }
-    os_unfair_lock_unlock(&_initLock);
 
     [self _initializeHealthStore];
 
@@ -1183,7 +1182,6 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
         NSLog(@"[HealthKit] Apple HealthKit is not available in this platform");
     }
 
-    os_unfair_lock_lock(&_initLock);
     _observersInitialized = YES;
     os_unfair_lock_unlock(&_initLock);
 }
