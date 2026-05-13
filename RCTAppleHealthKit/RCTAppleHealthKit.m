@@ -1159,22 +1159,27 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
             [self fitness_registerObserver:type bridge:bridge];
         }
 
-        NSArray *clinicalObservers = @[
-            @"AllergyRecord",
-            @"ConditionRecord",
-            @"CoverageRecord",
-            @"ImmunizationRecord",
-            @"LabResultRecord",
-            @"MedicationRecord",
-            @"ProcedureRecord",
-            @"VitalSignRecord"
-        ];
+        // Clinical observers and InsulinDelivery are skipped when a specific metrics
+        // list is provided — they would fire background wakes for unauthorized types.
+        // When metrics is nil (register all), they are included as before.
+        if (metrics.count == 0) {
+            NSArray *clinicalObservers = @[
+                @"AllergyRecord",
+                @"ConditionRecord",
+                @"CoverageRecord",
+                @"ImmunizationRecord",
+                @"LabResultRecord",
+                @"MedicationRecord",
+                @"ProcedureRecord",
+                @"VitalSignRecord"
+            ];
 
-        for (NSString *type in clinicalObservers) {
-            [self clinical_registerObserver:type bridge:bridge];
+            for (NSString *type in clinicalObservers) {
+                [self clinical_registerObserver:type bridge:bridge];
+            }
+
+            [self results_registerObservers:bridge];
         }
-
-        [self results_registerObservers:bridge];
 
         NSLog(@"[HealthKit] Background observers added to the app");
         [self startObserving];
