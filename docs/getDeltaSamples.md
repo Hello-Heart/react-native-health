@@ -18,11 +18,13 @@ Fetch only what changed in HealthKit since your last query — added and deleted
 
 ```ts
 {
-  anchor:  string            // Store and pass back on next call
-  added:   HealthValue[]     // New or updated samples
-  deleted: { id: string }[]  // Deleted sample UUIDs — original data is gone
+  anchor:  string          // Store and pass back on next call
+  added:   DeltaSample[]   // HealthValue | SleepSample | BloodPressureSample | ClinicalSample — shape depends on `type`
+  deleted: { id: string }[] // Deleted sample UUIDs — original data is gone
 }
 ```
+
+> **Shape depends on `type`:** `added` entries are `HealthValue` for most types, `SleepSample` for `SleepAnalysis`, `BloodPressureSample` for `BloodPressure`, and `ClinicalSample` for clinical record types. Accessing `.value` directly will crash or return `undefined` for BloodPressure and Clinical — narrow the type by `options.type` first.
 
 ## Proactive mode — fetch on demand
 
@@ -78,7 +80,7 @@ AppleHealthKit.getDeltaSamplesForPermissions(
 
 ## Reactive mode — observer events
 
-After `initializeBackgroundObservers()`, HealthKit pushes deltas automatically:
+After calling `setObserver` for each type you want to monitor, HealthKit pushes deltas automatically:
 
 ```js
 import { NativeModules, NativeEventEmitter } from 'react-native'
@@ -120,6 +122,7 @@ The `type` field is **required**. If omitted or empty, both methods return an er
 // ❌ WRONG - missing type
 AppleHealthKit.getDeltaSamples({ anchor: lastAnchor }, (err) => {
   // err.message: "getDeltaSamples: missing required 'type' field"
+  // err.expectedTypes: ['HeartRate', 'StepCount', ..., 'Workout', ...]
 })
 
 // ✅ CORRECT
@@ -150,22 +153,49 @@ AppleHealthKit.getDeltaSamplesForPermissions([
 
 ## Unsupported Type Errors
 
-If you pass an unsupported type, you'll get a helpful error with the list of supported types:
+Passing a non-empty but unrecognized type returns a distinct error:
 
 ```javascript
 AppleHealthKit.getDeltaSamples(
-  { type: 'InvalidType', unit: 'bpm' },
+  { type: 'UnknownType' },
   (err) => {
-    // err.message: "getDeltaSamples: unsupported or clinical type"
-    // err.supportedTypes: ['HeartRate', 'StepCount', ..., 'Workout']
-    // err.hint: "For clinical types (AllergyRecord, ConditionRecord, etc.), ensure you have proper permissions"
+    // err.message: "getDeltaSamples: unsupported type"
+    // err.type: 'UnknownType'
   }
 )
 ```
 
-Supported standard types:
-- `HeartRate`, `RestingHeartRate`, `HeartRateVariabilitySDNN`
-- `StepCount`, `Walking`, `Running`, `Cycling`, `StairClimbing`, `Swimming`
-- `ActiveEnergyBurned`, `BasalEnergyBurned`
-- `Vo2Max`, `InsulinDelivery`, `DietaryCholesterol`
-- `Workout` (special type)
+Passing an empty or missing type returns the missing-type error with the full supported list:
+
+```javascript
+AppleHealthKit.getDeltaSamples(
+  { type: '' },
+  (err) => {
+    // err.message: "getDeltaSamples: missing required 'type' field"
+    // err.expectedTypes: ['HeartRate', 'StepCount', ..., 'Workout', ...]
+  }
+)
+```
+
+Supported types:
+
+**Vitals & activity:**
+`HeartRate`, `RestingHeartRate`, `HeartRateVariabilitySDNN`, `Vo2Max`,
+`OxygenSaturation`, `RespiratoryRate`, `BodyTemperature`, `BloodGlucose`, `BloodPressure`
+
+**Body measurements:**
+`BodyMass`, `BodyMassIndex`, `Height`, `BodyFatPercentage`
+
+**Activity:**
+`StepCount`, `Walking`, `Running`, `Cycling`, `StairClimbing`, `Swimming`,
+`ActiveEnergyBurned`, `BasalEnergyBurned`
+
+**Other quantity types:**
+`InsulinDelivery`, `DietaryCholesterol`
+
+**Special types:**
+`SleepAnalysis` (category type), `Workout` (workout type)
+
+**Clinical / FHIR (iOS 12+):**
+`AllergyRecord`, `ConditionRecord`, `CoverageRecord`, `ImmunizationRecord`,
+`LabResultRecord`, `MedicationRecord`, `ProcedureRecord`, `VitalSignRecord`

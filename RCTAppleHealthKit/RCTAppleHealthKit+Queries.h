@@ -69,7 +69,27 @@
                          predicate:(NSPredicate *)predicate
                             anchor:(HKQueryAnchor *)anchor
                              limit:(NSUInteger)lim
+               includeManuallyAdded:(BOOL)includeManuallyAdded
                         completion:(void (^)(NSDictionary *, NSError *))completion;
+
+- (void)fetchAnchoredCategorySamplesOfType:(HKCategoryType *)categoryType
+                                  predicate:(NSPredicate *)predicate
+                                     anchor:(HKQueryAnchor *)anchor
+                                      limit:(NSUInteger)lim
+                                 completion:(void (^)(NSDictionary *, NSError *))completion;
+
+- (void)fetchAnchoredCorrelationSamplesOfType:(HKCorrelationType *)correlationType
+                                     predicate:(NSPredicate *)predicate
+                                        anchor:(HKQueryAnchor *)anchor
+                                         limit:(NSUInteger)lim
+                                    completion:(void (^)(NSDictionary *, NSError *))completion;
+
+- (void)fetchAnchoredClinicalSamplesOfType:(HKClinicalType *)clinicalType
+                                  predicate:(NSPredicate *)predicate
+                                     anchor:(HKQueryAnchor *)anchor
+                                      limit:(NSUInteger)lim
+                                 completion:(void (^)(NSDictionary *, NSError *))completion
+    API_AVAILABLE(ios(12.0));
 
 - (void)fetchQuantitySamplesOfType:(HKQuantityType *)quantityType
                               unit:(HKUnit *)unit
@@ -119,8 +139,7 @@
 
 - (void)setObserverForType:(HKSampleType *)quantityType
                       type:(NSString *)type
-                    bridge:(RCTBridge *)bridge
-                    hasListeners:(bool)hasListeners;
+                    bridge:(RCTBridge *)bridge;
 
 - (void)fetchActivitySummary:(NSDate *)startDate
                      endDate:(NSDate *)endDate

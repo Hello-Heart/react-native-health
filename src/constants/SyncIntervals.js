@@ -1,7 +1,10 @@
 /**
- * Minimum time between background delta fetches for HealthKit observers.
+ * Named aliases for common background-sync intervals.
  * Pass to configureBackgroundSync({ syncInterval }).
  * Default when omitted: every24Hours.
+ *
+ * You may also pass a raw number of seconds instead of a named alias,
+ * e.g. { syncInterval: 60 } for a 1-minute interval.
  *
  * @type {Object}
  */

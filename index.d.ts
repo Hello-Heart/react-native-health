@@ -530,13 +530,19 @@ declare module 'react-native-health' {
     value: string
     age: number
   }
+  export interface HKDevice {
+    name?: string
+    model?: string
+    hardwareVersion?: string
+    softwareVersion?: string
+  }
+
   interface BaseValue {
     id?: string
     startDate: string
     endDate: string
     metadata?: RecordMetadata
-    /** Device identifier - product type (iOS 11+) or device name (pre-iOS 11). Returns consistently as string across all query types. */
-    device: string
+    device?: HKDevice
   }
 
   export interface LocationValue {
@@ -588,7 +594,7 @@ declare module 'react-native-health' {
   }
 
   export interface HKWorkoutRouteSampleType {
-    device: string
+    device?: HKDevice
     id: string
     metadata: any
     sourceName: string
@@ -620,7 +626,7 @@ declare module 'react-native-health' {
     activityId: number
     activityName: string
     calories: number
-    device: string
+    device?: HKDevice
     id: string
     tracked: boolean
     metadata: any
@@ -637,7 +643,6 @@ declare module 'react-native-health' {
     classification: ElectrocardiogramClassification
     averageHeartRate: number
     samplingFrequency: number
-    device: string
     algorithmVersion: number
     voltageMeasurements: number[][]
   }
@@ -931,7 +936,11 @@ declare module 'react-native-health' {
     | 'last6months'
     | 'lastyear'
 
-  /** Minimum time between background delta fetches. Default: 'every24hours'. */
+  /**
+   * Minimum time between background delta fetches. Default: `'every24hours'`.
+   * Pass a named alias or a raw positive number of **seconds** (e.g. `60` for 1 minute).
+   * Floats are rounded to the nearest integer. Zero, negative, NaN, and Infinity fall back to `86400s` at runtime.
+   */
   export type SyncInterval =
     | 'every1hour'
     | 'every6hours'
@@ -939,9 +948,11 @@ declare module 'react-native-health' {
     | 'every24hours'
     | 'every48hours'
     | 'everyweek'
+    | number // must be a positive finite value in seconds; zero, negative, NaN, and Infinity default to 86400s at runtime
 
   export interface BackgroundSyncOptions {
     enabled?:      boolean
+    /** Positive seconds; floats rounded to nearest integer (min 1s). Zero, negative, NaN, or Infinity default to 86400s (24 hours). */
     syncInterval?: SyncInterval
   }
 
@@ -949,45 +960,98 @@ declare module 'react-native-health' {
     id: string
   }
 
+  export interface SleepSample {
+    id: string
+    value: 'INBED' | 'ASLEEP' | 'CORE' | 'DEEP' | 'REM' | 'AWAKE' | 'UNKNOWN'
+    startDate: string
+    endDate: string
+    sourceName: string
+    sourceId: string
+    device?: HKDevice
+    metadata: Record<string, unknown>
+  }
+
+  export interface BloodPressureSample {
+    id: string
+    bloodPressureSystolicValue: number
+    bloodPressureDiastolicValue: number
+    startDate: string
+    endDate: string
+    sourceName: string
+    sourceId: string
+    device?: HKDevice
+    metadata: Record<string, unknown>
+  }
+
+  export interface ClinicalSample {
+    id: string
+    displayName: string
+    fhirData: Record<string, unknown>
+    fhirRelease: string
+    fhirVersion: string
+    startDate: string
+    endDate: string
+    sourceName: string
+    sourceId: string
+    device?: HKDevice
+  }
+
+  export type DeltaSample = HealthValue | SleepSample | BloodPressureSample | ClinicalSample
+
   export interface DeltaQueryResult {
-    anchor:  string
-    added:   HealthValue[]
-    deleted: DeletedSample[]
+    anchor:       string
+    added:        DeltaSample[]
+    deleted:      DeletedSample[]
+    /** Number of samples skipped due to serialization errors or incomplete data (e.g. partial BloodPressure correlations). Only present when > 0. */
+    serializationErrors?: number
   }
 
   export interface DeltaQueryOptions {
     /** @required Unique identifier for the health data type (e.g., 'HeartRate', 'StepCount', 'Workout') */
-    type:       HealthObserver
+    type:                  HealthObserver
     /** Previous query result's anchor string to fetch only changes since last query */
-    anchor?:    string
+    anchor?:               string
     /** Unit for quantity types */
-    unit?:      HealthUnit
+    unit?:                 HealthUnit
     /** ISO 8601 start date string */
-    startDate?: string
+    startDate?:            string
     /** ISO 8601 end date string */
-    endDate?:   string
+    endDate?:              string
     /** Preset period like 'today' or 'last7days' */
-    period?:    HealthPeriod
+    period?:               HealthPeriod
     /** Maximum number of results to return */
-    limit?:     number
+    limit?:                number
+    /** When false, samples manually entered by the user are excluded. Defaults to true. */
+    includeManuallyAdded?: boolean
   }
 
   export enum HealthObserver {
     ActiveEnergyBurned = 'ActiveEnergyBurned',
     AllergyRecord = 'AllergyRecord',
     BasalEnergyBurned = 'BasalEnergyBurned',
+    BloodGlucose = 'BloodGlucose',
+    BloodPressure = 'BloodPressure',
+    BodyFatPercentage = 'BodyFatPercentage',
+    BodyMass = 'BodyMass',
+    BodyMassIndex = 'BodyMassIndex',
+    BodyTemperature = 'BodyTemperature',
     ConditionRecord = 'ConditionRecord',
     CoverageRecord = 'CoverageRecord',
     Cycling = 'Cycling',
+    DietaryCholesterol = 'DietaryCholesterol',
     HeartRate = 'HeartRate',
     HeartRateVariabilitySDNN = 'HeartRateVariabilitySDNN',
+    Height = 'Height',
     ImmunizationRecord = 'ImmunizationRecord',
     InsulinDelivery = 'InsulinDelivery',
     LabResultRecord = 'LabResultRecord',
     MedicationRecord = 'MedicationRecord',
+    OxygenSaturation = 'OxygenSaturation',
     ProcedureRecord = 'ProcedureRecord',
+    RespiratoryRate = 'RespiratoryRate',
     RestingHeartRate = 'RestingHeartRate',
     Running = 'Running',
+    SleepAnalysis = 'SleepAnalysis',
     StairClimbing = 'StairClimbing',
     StepCount = 'StepCount',
     Swimming = 'Swimming',
