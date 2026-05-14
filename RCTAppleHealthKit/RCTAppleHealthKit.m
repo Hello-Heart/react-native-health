@@ -274,6 +274,8 @@ RCT_EXPORT_METHOD(configureBackgroundSync:(NSDictionary *)input)
     // this is the only guaranteed JS-reachable entry point on this setup.
     // Uses a BOOL ivar (not dispatch_once) so a nil-bridge first call can retry on the next call.
     // Persist metrics list so AppDelegate can re-register the same types on killed-state launch.
+    // nil and @[] are treated identically as "register all" — the JS caller guards against
+    // passing an empty array (backgroundSync.ts line 90), so this case does not arise in practice.
     NSArray *metrics = [input objectForKey:@"metrics"];
     if (metrics.count > 0) {
         [[NSUserDefaults standardUserDefaults] setObject:metrics forKey:@"RNHealth_SyncMetrics"];
@@ -1082,8 +1084,12 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
 
     This method must be called at the application:didFinishLaunchingWithOptions: method, in AppDelegate.m
  */
-// Maps @helloheart/core HealthMetric enum values to native HK type strings.
-// Only includes types present in allFitnessObservers — others are silently ignored.
+// Maps @helloheart/core HealthMetric enum values to the HK type string passed to
+// fitness_registerObserver. Every entry here must also appear in allFitnessObservers.
+// Metrics with no HK observer type (totalCholesterol, hdlCholesterol, ldlCholesterol,
+// triglycerides) are intentionally absent — they come from clinical records only.
+// bloodPressure maps to BloodPressureSystolic as a proxy: any new BP reading writes
+// both systolic and diastolic simultaneously, so the systolic observer fires reliably.
 + (NSDictionary<NSString *, NSString *> *)healthMetricToHKTypeMap {
     return @{
         @"heartRate":        @"HeartRate",
@@ -1093,6 +1099,15 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
         @"activeEnergy":     @"ActiveEnergyBurned",
         @"sleep":            @"SleepAnalysis",
         @"vo2Max":           @"Vo2Max",
+        @"spO2":             @"OxygenSaturation",
+        @"respiratoryRate":  @"RespiratoryRate",
+        @"bodyTemperature":  @"BodyTemperature",
+        @"weight":           @"BodyMass",
+        @"height":           @"Height",
+        @"bmi":              @"BodyMassIndex",
+        @"bodyFat":          @"BodyFatPercentage",
+        @"bloodGlucose":     @"BloodGlucose",
+        @"bloodPressure":    @"BloodPressureSystolic",
     };
 }
 
@@ -1116,19 +1131,28 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
         NSArray *allFitnessObservers = @[
             @"ActiveEnergyBurned",
             @"BasalEnergyBurned",
+            @"BloodGlucose",
+            @"BloodPressureSystolic",
+            @"BodyFatPercentage",
+            @"BodyMass",
+            @"BodyMassIndex",
+            @"BodyTemperature",
             @"Cycling",
             @"HeartRate",
             @"HeartRateVariabilitySDNN",
+            @"Height",
+            @"MindfulSession",
+            @"OxygenSaturation",
+            @"RespiratoryRate",
             @"RestingHeartRate",
             @"Running",
+            @"SleepAnalysis",
             @"StairClimbing",
             @"StepCount",
             @"Swimming",
             @"Vo2Max",
             @"Walking",
             @"Workout",
-            @"MindfulSession",
-            @"SleepAnalysis",
         ];
 
         NSArray *fitnessToRegister;
@@ -1159,22 +1183,37 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
             [self fitness_registerObserver:type bridge:bridge];
         }
 
-        NSArray *clinicalObservers = @[
-            @"AllergyRecord",
-            @"ConditionRecord",
-            @"CoverageRecord",
-            @"ImmunizationRecord",
-            @"LabResultRecord",
-            @"MedicationRecord",
-            @"ProcedureRecord",
-            @"VitalSignRecord"
-        ];
-
-        for (NSString *type in clinicalObservers) {
-            [self clinical_registerObserver:type bridge:bridge];
+        if (metrics.count > 0 && fitnessToRegister.count == 0) {
+            NSLog(@"[HealthKit] WARNING — no observers registered: none of the requested metrics have an HK observer type. "
+                  @"Unsupported metrics (e.g. totalCholesterol, triglycerides) come from clinical records only. "
+                  @"Requested: %@", [metrics componentsJoinedByString:@", "]);
+            // _observersInitialized intentionally NOT set — allows retry if the caller
+            // provides a corrected metrics list in a subsequent configureBackgroundSync call.
+            os_unfair_lock_unlock(&_initLock);
+            return;
         }
 
-        [self results_registerObservers:bridge];
+        // Clinical observers and InsulinDelivery are skipped when a specific metrics
+        // list is provided — they would fire background wakes for unauthorized types.
+        // When metrics is nil (register all), they are included as before.
+        if (metrics.count == 0) {
+            NSArray *clinicalObservers = @[
+                @"AllergyRecord",
+                @"ConditionRecord",
+                @"CoverageRecord",
+                @"ImmunizationRecord",
+                @"LabResultRecord",
+                @"MedicationRecord",
+                @"ProcedureRecord",
+                @"VitalSignRecord"
+            ];
+
+            for (NSString *type in clinicalObservers) {
+                [self clinical_registerObserver:type bridge:bridge];
+            }
+
+            [self results_registerObservers:bridge];
+        }
 
         NSLog(@"[HealthKit] Background observers added to the app");
         [self startObserving];
