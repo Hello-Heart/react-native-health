@@ -1187,6 +1187,8 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
             NSLog(@"[HealthKit] WARNING — no observers registered: none of the requested metrics have an HK observer type. "
                   @"Unsupported metrics (e.g. totalCholesterol, triglycerides) come from clinical records only. "
                   @"Requested: %@", [metrics componentsJoinedByString:@", "]);
+            // _observersInitialized intentionally NOT set — allows retry if the caller
+            // provides a corrected metrics list in a subsequent configureBackgroundSync call.
             os_unfair_lock_unlock(&_initLock);
             return;
         }
