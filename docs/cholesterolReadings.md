@@ -40,6 +40,7 @@ Array of `CholesterolPanel` objects. Panels without a `total` value are excluded
 
 | Field | Type | Required | Unit | Description |
 |-------|------|----------|------|-------------|
+| `id` | string | No | — | HealthKit sample UUID |
 | `startDate` | string | Yes | ISO 8601 | Panel sample date |
 | `endDate` | string | Yes | ISO 8601 | Panel sample end date |
 | `sourceName` | string | Yes | — | Health institution name |
