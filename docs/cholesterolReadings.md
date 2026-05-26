@@ -40,7 +40,7 @@ Array of `CholesterolPanel` objects. Panels without a `total` value are excluded
 
 | Field | Type | Required | Unit | Description |
 |-------|------|----------|------|-------------|
-| `id` | string | No | — | HealthKit sample UUID |
+| `id` | string | No | — | HealthKit sample UUID (delta path only) |
 | `startDate` | string | Yes | ISO 8601 | Panel sample date |
 | `endDate` | string | Yes | ISO 8601 | Panel sample end date |
 | `sourceName` | string | Yes | — | Health institution name |
@@ -49,6 +49,8 @@ Array of `CholesterolPanel` objects. Panels without a `total` value are excluded
 | `ldl` | number | No | mg/dL | LDL cholesterol |
 | `hdl` | number | No | mg/dL | HDL cholesterol |
 | `triglycerides` | number | No | mg/dL | Triglycerides |
+
+> **Note:** The `id` field is only present in results from `getDeltaSamples({ type: 'CholesterolReadings' })`. It is not populated by `cholesterolReadings()` since bulk panels group multiple observations.
 
 ## LOINC Codes
 
