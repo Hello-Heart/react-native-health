@@ -10,6 +10,79 @@
 #import "RCTAppleHealthKit+Queries.h"
 #import "RCTAppleHealthKit+Utils.h"
 
+// Maps LOINC codes to CholesterolPanel field names.
+static NSString * _cholesterolFieldForLoinc(NSString *code) {
+    if (!code) return nil;
+    static NSDictionary *map;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        map = @{
+            @"2093-3":  @"total",
+            @"2089-1":  @"ldl",
+            @"18262-6": @"ldl",
+            @"13457-7": @"ldl",
+            @"2085-9":  @"hdl",
+            @"2571-8":  @"triglycerides",
+        };
+    });
+    return map[code];
+}
+
+// Groups raw FHIR LabResultRecord records into cholesterol panels.
+// Panels without a `total` value are excluded.
+// Returns unsorted array — caller is responsible for ordering.
+static NSArray * _buildCholesterolPanels(NSArray *records) {
+    NSMutableDictionary *groups = [NSMutableDictionary dictionary];
+
+    for (NSDictionary *record in records) {
+        id fhirData = record[@"fhirData"];
+        if (![fhirData isKindOfClass:[NSDictionary class]]) continue;
+        NSDictionary *fhir = (NSDictionary *)fhirData;
+        if (![@"Observation" isEqualToString:fhir[@"resourceType"]]) continue;
+
+        NSString *loincCode = nil;
+        NSArray *codings = [fhir[@"code"] objectForKey:@"coding"];
+        for (NSDictionary *coding in codings) {
+            if ([@"http://loinc.org" isEqualToString:coding[@"system"]]) {
+                loincCode = coding[@"code"];
+                break;
+            }
+        }
+
+        NSString *field = _cholesterolFieldForLoinc(loincCode);
+        if (!field) continue;
+
+        NSDictionary *valueQuantity = fhir[@"valueQuantity"];
+        NSNumber *value = valueQuantity[@"value"];
+        if (!value) continue;
+
+        NSString *sourceId  = record[@"sourceId"]  ?: @"";
+        NSString *startDate = record[@"startDate"] ?: @"";
+        NSString *dayKey    = startDate.length >= 10 ? [startDate substringToIndex:10] : startDate;
+        NSString *groupKey  = [NSString stringWithFormat:@"%@|%@", sourceId, dayKey];
+
+        NSMutableDictionary *panel = groups[groupKey];
+        if (!panel) {
+            panel = [@{
+                @"startDate":  startDate,
+                @"endDate":    record[@"endDate"]    ?: @"",
+                @"sourceName": record[@"sourceName"] ?: @"",
+                @"sourceId":   sourceId,
+            } mutableCopy];
+            groups[groupKey] = panel;
+        }
+        panel[field] = value;
+    }
+
+    NSMutableArray *panels = [NSMutableArray array];
+    for (NSDictionary *panel in groups.allValues) {
+        if (panel[@"total"]) {
+            [panels addObject:panel];
+        }
+    }
+    return panels;
+}
+
 @implementation RCTAppleHealthKit (Methods_Clinics)
 
 - (void)clinics_getMedications:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback
@@ -136,6 +209,76 @@
                                   return;
                               }
                           }];
+}
+
++ (NSDictionary *)cholesterolFieldFromFHIRRecord:(NSDictionary *)record {
+    id fhirData = record[@"fhirData"];
+    if (![fhirData isKindOfClass:[NSDictionary class]]) return nil;
+    NSDictionary *fhir = (NSDictionary *)fhirData;
+    if (![@"Observation" isEqualToString:fhir[@"resourceType"]]) return nil;
+
+    NSString *loincCode = nil;
+    NSArray *codings = [fhir[@"code"] objectForKey:@"coding"];
+    for (NSDictionary *coding in codings) {
+        if ([@"http://loinc.org" isEqualToString:coding[@"system"]]) {
+            loincCode = coding[@"code"];
+            break;
+        }
+    }
+
+    NSString *field = _cholesterolFieldForLoinc(loincCode);
+    if (!field) return nil;
+
+    NSDictionary *valueQuantity = fhir[@"valueQuantity"];
+    NSNumber *value = valueQuantity[@"value"];
+    if (!value) return nil;
+
+    return @{ @"field": field, @"value": value };
+}
+
+- (void)clinics_getCholesterolReadings:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback {
+    if (@available(iOS 12.0, *)) {
+        HKClinicalType *labType = (HKClinicalType *)[RCTAppleHealthKit clinicalTypeFromName:@"LabResultRecord"];
+        if (labType == nil) {
+            callback(@[RCTMakeError(@"Clinical records entitlement not available", nil, nil)]);
+            return;
+        }
+
+        NSDate *startDate = [RCTAppleHealthKit dateFromOptions:input key:@"startDate" withDefault:nil];
+        if (startDate == nil) {
+            callback(@[RCTMakeError(@"startDate is required in options", nil, nil)]);
+            return;
+        }
+        NSDate *endDate  = [RCTAppleHealthKit dateFromOptions:input key:@"endDate"   withDefault:[NSDate date]];
+        NSUInteger limit = [RCTAppleHealthKit uintFromOptions:input key:@"limit"     withDefault:HKObjectQueryNoLimit];
+        BOOL ascending   = [RCTAppleHealthKit boolFromOptions:input key:@"ascending" withDefault:false];
+
+        NSPredicate *predicate = [RCTAppleHealthKit predicateForSamplesBetweenDates:startDate endDate:endDate];
+
+        // Fetch all lab records in range — grouping reduces count, so limit is applied after.
+        [self fetchClinicalRecordsOfType:labType
+                               predicate:predicate
+                               ascending:false
+                                   limit:HKObjectQueryNoLimit
+                              completion:^(NSArray *results, NSError *error) {
+            if (!results) {
+                callback(@[RCTJSErrorFromNSError(error)]);
+                return;
+            }
+            NSArray *panels = _buildCholesterolPanels(results);
+            NSArray *sorted = [panels sortedArrayUsingComparator:^NSComparisonResult(NSDictionary *a, NSDictionary *b) {
+                return ascending
+                    ? [a[@"startDate"] compare:b[@"startDate"]]
+                    : [b[@"startDate"] compare:a[@"startDate"]];
+            }];
+            if (limit != HKObjectQueryNoLimit && sorted.count > limit) {
+                sorted = [sorted subarrayWithRange:NSMakeRange(0, limit)];
+            }
+            callback(@[[NSNull null], sorted]);
+        }];
+    } else {
+        callback(@[RCTMakeError(@"cholesterolReadings requires iOS 12.0 or later", nil, nil)]);
+    }
 }
 
 @end
