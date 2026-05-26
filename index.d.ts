@@ -521,6 +521,11 @@ declare module 'react-native-health' {
       callback: (err: string, results: Array<HealthValue>) => void,
     ): void
 
+    cholesterolReadings(
+      options: CholesterolReadingsOptions,
+      callback: (err: string, results: Array<CholesterolPanel>) => void,
+    ): void
+
     Constants: Constants
   }
 
@@ -670,6 +675,13 @@ declare module 'react-native-health' {
     appleExerciseTimeGoal: number
     appleStandHours: number
     appleStandHoursGoal: number
+  }
+
+  export interface CholesterolReadingsOptions {
+    startDate: string
+    endDate?: string
+    limit?: number
+    ascending?: boolean
   }
 
   export interface HealthClinicalRecordOptions {
@@ -996,7 +1008,19 @@ declare module 'react-native-health' {
     device?: HKDevice
   }
 
-  export type DeltaSample = HealthValue | SleepSample | BloodPressureSample | ClinicalSample
+  export interface CholesterolPanel {
+    id?: string
+    startDate: string
+    endDate: string
+    sourceName: string
+    sourceId: string
+    total: number
+    ldl?: number
+    hdl?: number
+    triglycerides?: number
+  }
+
+  export type DeltaSample = HealthValue | SleepSample | BloodPressureSample | ClinicalSample | CholesterolPanel
 
   export interface DeltaQueryResult {
     anchor:       string
@@ -1031,6 +1055,7 @@ declare module 'react-native-health' {
     BasalEnergyBurned = 'BasalEnergyBurned',
     BloodGlucose = 'BloodGlucose',
     BloodPressure = 'BloodPressure',
+    CholesterolReadings = 'CholesterolReadings',
     BodyFatPercentage = 'BodyFatPercentage',
     BodyMass = 'BodyMass',
     BodyMassIndex = 'BodyMassIndex',
