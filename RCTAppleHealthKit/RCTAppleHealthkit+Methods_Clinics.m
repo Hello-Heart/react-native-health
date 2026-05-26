@@ -41,7 +41,9 @@ static NSArray * _buildCholesterolPanels(NSArray *records) {
         if (![@"Observation" isEqualToString:fhir[@"resourceType"]]) continue;
 
         NSString *loincCode = nil;
-        NSArray *codings = [fhir[@"code"] objectForKey:@"coding"];
+        id codeObj = fhir[@"code"];
+        if (![codeObj isKindOfClass:[NSDictionary class]]) continue;
+        NSArray *codings = [(NSDictionary *)codeObj objectForKey:@"coding"];
         for (NSDictionary *coding in codings) {
             if ([@"http://loinc.org" isEqualToString:coding[@"system"]]) {
                 loincCode = coding[@"code"];
@@ -218,7 +220,9 @@ static NSArray * _buildCholesterolPanels(NSArray *records) {
     if (![@"Observation" isEqualToString:fhir[@"resourceType"]]) return nil;
 
     NSString *loincCode = nil;
-    NSArray *codings = [fhir[@"code"] objectForKey:@"coding"];
+    id codeObj = fhir[@"code"];
+    if (![codeObj isKindOfClass:[NSDictionary class]]) return nil;
+    NSArray *codings = [(NSDictionary *)codeObj objectForKey:@"coding"];
     for (NSDictionary *coding in codings) {
         if ([@"http://loinc.org" isEqualToString:coding[@"system"]]) {
             loincCode = coding[@"code"];
@@ -238,11 +242,7 @@ static NSArray * _buildCholesterolPanels(NSArray *records) {
 
 - (void)clinics_getCholesterolReadings:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback {
     if (@available(iOS 12.0, *)) {
-        HKClinicalType *labType = (HKClinicalType *)[RCTAppleHealthKit clinicalTypeFromName:@"LabResultRecord"];
-        if (labType == nil) {
-            callback(@[RCTMakeError(@"Clinical records entitlement not available", nil, nil)]);
-            return;
-        }
+        HKClinicalType *labType = [HKClinicalType clinicalTypeForIdentifier:HKClinicalTypeIdentifierLabResultRecord];
 
         NSDate *startDate = [RCTAppleHealthKit dateFromOptions:input key:@"startDate" withDefault:nil];
         if (startDate == nil) {
@@ -258,7 +258,7 @@ static NSArray * _buildCholesterolPanels(NSArray *records) {
         // Fetch all lab records in range — grouping reduces count, so limit is applied after.
         [self fetchClinicalRecordsOfType:labType
                                predicate:predicate
-                               ascending:false
+                               ascending:ascending
                                    limit:HKObjectQueryNoLimit
                               completion:^(NSArray *results, NSError *error) {
             if (!results) {
