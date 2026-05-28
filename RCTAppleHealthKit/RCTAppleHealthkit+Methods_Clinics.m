@@ -28,6 +28,19 @@ static NSString * _cholesterolFieldForLoinc(NSString *code) {
     return map[code];
 }
 
+// Returns the first LOINC code from an Observation's code.coding array, or nil.
+static NSString * _loincCodeFromFHIRObservation(NSDictionary *fhir) {
+    id codeObj = fhir[@"code"];
+    if (![codeObj isKindOfClass:[NSDictionary class]]) return nil;
+    NSArray *codings = [(NSDictionary *)codeObj objectForKey:@"coding"];
+    for (NSDictionary *coding in codings) {
+        if ([@"http://loinc.org" isEqualToString:coding[@"system"]]) {
+            return coding[@"code"];
+        }
+    }
+    return nil;
+}
+
 // Groups raw FHIR LabResultRecord records into cholesterol panels.
 // Panels without a `total` value are excluded.
 // Returns unsorted array — caller is responsible for ordering.
@@ -40,16 +53,8 @@ static NSArray * _buildCholesterolPanels(NSArray *records) {
         NSDictionary *fhir = (NSDictionary *)fhirData;
         if (![@"Observation" isEqualToString:fhir[@"resourceType"]]) continue;
 
-        NSString *loincCode = nil;
-        id codeObj = fhir[@"code"];
-        if (![codeObj isKindOfClass:[NSDictionary class]]) continue;
-        NSArray *codings = [(NSDictionary *)codeObj objectForKey:@"coding"];
-        for (NSDictionary *coding in codings) {
-            if ([@"http://loinc.org" isEqualToString:coding[@"system"]]) {
-                loincCode = coding[@"code"];
-                break;
-            }
-        }
+        NSString *loincCode = _loincCodeFromFHIRObservation(fhir);
+        if (!loincCode) continue;
 
         NSString *field = _cholesterolFieldForLoinc(loincCode);
         if (!field) continue;
@@ -219,16 +224,8 @@ static NSArray * _buildCholesterolPanels(NSArray *records) {
     NSDictionary *fhir = (NSDictionary *)fhirData;
     if (![@"Observation" isEqualToString:fhir[@"resourceType"]]) return nil;
 
-    NSString *loincCode = nil;
-    id codeObj = fhir[@"code"];
-    if (![codeObj isKindOfClass:[NSDictionary class]]) return nil;
-    NSArray *codings = [(NSDictionary *)codeObj objectForKey:@"coding"];
-    for (NSDictionary *coding in codings) {
-        if ([@"http://loinc.org" isEqualToString:coding[@"system"]]) {
-            loincCode = coding[@"code"];
-            break;
-        }
-    }
+    NSString *loincCode = _loincCodeFromFHIRObservation(fhir);
+    if (!loincCode) return nil;
 
     NSString *field = _cholesterolFieldForLoinc(loincCode);
     if (!field) return nil;
