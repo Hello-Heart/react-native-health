@@ -259,7 +259,7 @@ static NSArray * _buildCholesterolPanels(NSArray *records) {
                                    limit:HKObjectQueryNoLimit
                               completion:^(NSArray *results, NSError *error) {
             if (!results) {
-                callback(@[RCTJSErrorFromNSError(error)]);
+                callback(@[RCTMakeError(@"error getting cholesterol readings", error, nil)]);
                 return;
             }
             NSArray *panels = _buildCholesterolPanels(results);
