@@ -78,6 +78,9 @@ static NSArray * _buildCholesterolPanels(NSArray *records) {
             } mutableCopy];
             groups[groupKey] = panel;
         }
+        if (panel[field]) {
+            NSLog(@"[RCTAppleHealthKit] cholesterol: duplicate '%@' in group '%@', overwriting", field, groupKey);
+        }
         panel[field] = value;
     }
 
