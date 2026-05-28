@@ -1014,7 +1014,7 @@ declare module 'react-native-health' {
     endDate: string
     sourceName: string
     sourceId: string
-    total: number
+    total?: number
     ldl?: number
     hdl?: number
     triglycerides?: number
