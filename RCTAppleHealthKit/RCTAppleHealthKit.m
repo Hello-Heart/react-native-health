@@ -124,9 +124,15 @@ RCT_EXPORT_MODULE();
 - (NSNumber *)_beginHeadlessTaskWithCompletionHandler:(HKObserverQueryCompletionHandler)handler {
     __weak typeof(self) weakSelf = self;
 
-    // Generate task ID first so the expiry block captures it by value
+    // Insert entry BEFORE registering the background task so the expiry block
+    // always finds a valid entry in _pendingTasks, even if it fires during
+    // the dispatch_sync below.
     os_unfair_lock_lock(&_taskLock);
     NSNumber *taskId = @(++_nextTaskId);
+    _pendingTasks[taskId] = [NSMutableDictionary dictionaryWithDictionary:@{
+        @"handler": [handler copy],
+        @"bgTask":  @(UIBackgroundTaskInvalid),
+    }];
     os_unfair_lock_unlock(&_taskLock);
 
     // UIApplication must be accessed on the main thread; dispatch_sync is safe here
@@ -141,13 +147,35 @@ RCT_EXPORT_MODULE();
             }];
     });
 
+    if (bgTaskId == UIBackgroundTaskInvalid) {
+        // System denied background time (app already in foreground, budget exhausted).
+        // Clean up and return nil — caller falls back to non-headless path which calls
+        // completionHandler() immediately.
+        os_unfair_lock_lock(&_taskLock);
+        [_pendingTasks removeObjectForKey:taskId];
+        os_unfair_lock_unlock(&_taskLock);
+        NSLog(@"[HealthSync] beginBackgroundTask returned Invalid for task %@ — using non-headless path", taskId);
+        return nil;
+    }
+
+    // Update the bgTask identifier now that we have it.
+    // If the expiry already fired during dispatch_sync (task removed from dict),
+    // end the background task ourselves since _releaseHeadlessTask saw UIBackgroundTaskInvalid.
+    BOOL alreadyReleased = NO;
     os_unfair_lock_lock(&_taskLock);
-    _pendingTasks[taskId] = [NSMutableDictionary dictionaryWithDictionary:@{
-        @"handler":    [handler copy],
-        @"bgTask":     @(bgTaskId),
-        @"completed":  @NO,
-    }];
+    NSMutableDictionary *task = _pendingTasks[taskId];
+    if (task) {
+        task[@"bgTask"] = @(bgTaskId);
+    } else {
+        alreadyReleased = YES;
+    }
     os_unfair_lock_unlock(&_taskLock);
+
+    if (alreadyReleased) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [[UIApplication sharedApplication] endBackgroundTask:bgTaskId];
+        });
+    }
 
     return taskId;
 }
@@ -179,11 +207,10 @@ RCT_EXPORT_MODULE();
 - (void)_releaseHeadlessTask:(NSNumber *)taskId {
     os_unfair_lock_lock(&_taskLock);
     NSMutableDictionary *task = _pendingTasks[taskId];
-    if (!task || [task[@"completed"] boolValue]) {
+    if (!task) {
         os_unfair_lock_unlock(&_taskLock);
         return;
     }
-    task[@"completed"] = @YES;
     HKObserverQueryCompletionHandler handler = task[@"handler"];
     UIBackgroundTaskIdentifier bgTask = [task[@"bgTask"] unsignedIntegerValue];
     NSString *anchorKey    = task[@"anchorKey"];
