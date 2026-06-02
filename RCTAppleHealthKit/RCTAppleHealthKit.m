@@ -111,6 +111,10 @@ RCT_EXPORT_MODULE();
         @"deletedIds": results[@"deletedIds"] ?: @[],
         @"anchor":     results[@"anchor"] ?: @"",
     }];
+    // NOTE: enqueueJSCall is a legacy RCTBridge API. Headless JS is not supported
+    // in New Architecture bridgeless mode (RN 0.74+) — if bridge is nil the guard
+    // above handles it; if bridge exists we are on legacy arch where this API works.
+    NSLog(@"[HealthSync] background wake: launching headless task %@ for metric %@", taskId, type);
     [self.bridge enqueueJSCall:@"AppRegistry"
                         method:@"startHeadlessTask"
                           args:@[taskId, @"HealthBackgroundSync", taskData]
