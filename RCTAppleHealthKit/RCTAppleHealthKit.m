@@ -38,10 +38,8 @@
     os_unfair_lock _initLock;
     NSMutableDictionary<NSNumber *, NSMutableDictionary *> *_pendingTasks;
     os_unfair_lock _taskLock;
-    BOOL _pendingWakeUp;
-    NSNumber *_pendingWakeUpTaskId;
-    NSString *_pendingWakeUpType;
-    NSDictionary *_pendingWakeUpResults;
+    uint32_t _nextTaskId;
+    NSMutableArray<NSDictionary *> *_pendingWakeUpTasks;
 }
 
 bool hasListeners;
@@ -72,31 +70,38 @@ RCT_EXPORT_MODULE();
     self = [super init];
     if (self) {
         _pendingTasks = [NSMutableDictionary dictionary];
+        _pendingWakeUpTasks = [NSMutableArray array];
         _taskLock = OS_UNFAIR_LOCK_INIT;
+        _nextTaskId = 0;
     }
     return self;
 }
 
 - (void)setBridge:(RCTBridge *)bridge {
     [super setBridge:bridge];
-    if (_pendingWakeUp && bridge) {
-        _pendingWakeUp = NO;
-        NSNumber *taskId = _pendingWakeUpTaskId;
-        NSString *type = _pendingWakeUpType;
-        NSDictionary *results = _pendingWakeUpResults;
-        _pendingWakeUpTaskId = nil;
-        _pendingWakeUpType = nil;
-        _pendingWakeUpResults = nil;
-        [self launchHeadlessTask:taskId withType:type results:results];
+    if (!bridge) return;
+
+    os_unfair_lock_lock(&_taskLock);
+    NSArray<NSDictionary *> *drained = [_pendingWakeUpTasks copy];
+    [_pendingWakeUpTasks removeAllObjects];
+    os_unfair_lock_unlock(&_taskLock);
+
+    for (NSDictionary *item in drained) {
+        [self launchHeadlessTask:item[@"taskId"]
+                        withType:item[@"type"]
+                         results:item[@"results"]];
     }
 }
 
 - (void)launchHeadlessTask:(NSNumber *)taskId withType:(NSString *)type results:(NSDictionary *)results {
     if (!self.bridge) {
-        _pendingWakeUp = YES;
-        _pendingWakeUpTaskId = taskId;
-        _pendingWakeUpType = type;
-        _pendingWakeUpResults = results;
+        os_unfair_lock_lock(&_taskLock);
+        [_pendingWakeUpTasks addObject:@{
+            @"taskId":  taskId,
+            @"type":    type ?: @"",
+            @"results": results ?: @{},
+        }];
+        os_unfair_lock_unlock(&_taskLock);
         return;
     }
     NSMutableDictionary *taskData = [NSMutableDictionary dictionaryWithDictionary:@{
