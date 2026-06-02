@@ -95,22 +95,31 @@ RCT_EXPORT_MODULE();
 
 - (void)launchHeadlessTask:(NSNumber *)taskId withType:(NSString *)type results:(NSDictionary *)results {
     if (!self.bridge) {
+        NSNumber *evictId = nil;
         os_unfair_lock_lock(&_taskLock);
+        if (_pendingWakeUpTasks.count >= 25) {
+            evictId = _pendingWakeUpTasks.firstObject[@"taskId"];
+            [_pendingWakeUpTasks removeObjectAtIndex:0];
+        }
         [_pendingWakeUpTasks addObject:@{
             @"taskId":  taskId,
             @"type":    type ?: @"",
             @"results": results ?: @{},
         }];
         os_unfair_lock_unlock(&_taskLock);
+        if (evictId) {
+            NSLog(@"[HealthSync] pending queue full (25), evicting task %@ — completionHandler fired, data not uploaded", evictId);
+            [self _releaseHeadlessTask:evictId];
+        }
         return;
     }
-    NSMutableDictionary *taskData = [NSMutableDictionary dictionaryWithDictionary:@{
+    NSDictionary *taskData = @{
         @"taskId":     taskId,
         @"metric":     type ?: @"",
         @"samples":    results[@"data"] ?: @[],
         @"deletedIds": results[@"deletedIds"] ?: @[],
         @"anchor":     results[@"anchor"] ?: @"",
-    }];
+    };
     // NOTE: enqueueJSCall is a legacy RCTBridge API. Headless JS is not supported
     // in New Architecture bridgeless mode (RN 0.74+) — if bridge is nil the guard
     // above handles it; if bridge exists we are on legacy arch where this API works.
