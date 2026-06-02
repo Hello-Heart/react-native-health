@@ -19,6 +19,7 @@
 
 @property (nonatomic) HKHealthStore *healthStore;
 @property (nonatomic, assign) BOOL hasListeners;
+@property (nonatomic, assign) BOOL backgroundHandlerRegistered;
 
 - (HKHealthStore *)_initializeHealthStore;
 - (void)isHealthKitAvailable:(RCTResponseSenderBlock)callback;

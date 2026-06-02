@@ -38,7 +38,6 @@
     os_unfair_lock _initLock;
     NSMutableDictionary<NSNumber *, NSMutableDictionary *> *_pendingTasks;
     os_unfair_lock _taskLock;
-    BOOL _backgroundHandlerRegistered;
     BOOL _pendingWakeUp;
     NSNumber *_pendingWakeUpTaskId;
     NSString *_pendingWakeUpType;
@@ -1349,7 +1348,7 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
 }
 
 RCT_EXPORT_METHOD(setBackgroundHandlerRegistered:(BOOL)registered) {
-    _backgroundHandlerRegistered = registered;
+    self.backgroundHandlerRegistered = registered;
 }
 
 // Called from JS (inside the Headless Task finally block) when upload completes.

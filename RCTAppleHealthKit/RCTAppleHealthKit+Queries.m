@@ -1672,7 +1672,7 @@
 
                 // Headless Task path: UIBackgroundTask fences the full fetch+upload cycle
                 NSNumber *sleepTaskId = nil;
-                if (_backgroundHandlerRegistered) {
+                if (self.backgroundHandlerRegistered) {
                     sleepTaskId = [self _beginHeadlessTaskWithCompletionHandler:completionHandler];
                 }
 
@@ -1769,7 +1769,7 @@
 
             // Headless Task path: UIBackgroundTask fences the full fetch+upload cycle
             NSNumber *quantityTaskId = nil;
-            if (_backgroundHandlerRegistered) {
+            if (self.backgroundHandlerRegistered) {
                 quantityTaskId = [self _beginHeadlessTaskWithCompletionHandler:completionHandler];
             }
 
