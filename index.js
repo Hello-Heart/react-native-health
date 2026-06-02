@@ -38,6 +38,8 @@ export const HealthKit =
         getSamples: AppleHealthKit.getSamples,
         getAnchoredWorkouts: AppleHealthKit.getAnchoredWorkouts,
         configureBackgroundSync: AppleHealthKit.configureBackgroundSync,
+        setBackgroundHandlerRegistered: AppleHealthKit.setBackgroundHandlerRegistered,
+        completeHealthTask: AppleHealthKit.completeHealthTask,
         getDeltaSamples: AppleHealthKit.getDeltaSamples,
         getDeltaSamplesForPermissions: function(requests, callback) {
           if (!requests || requests.length === 0) {
