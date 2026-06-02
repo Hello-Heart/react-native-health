@@ -189,6 +189,17 @@ RCT_EXPORT_MODULE();
     return taskId;
 }
 
++ (void)_persistAnchorKey:(NSString *)anchorKey
+                    value:(NSString *)anchorValue
+             lastFetchKey:(NSString *)lastFetchKey {
+    if (anchorKey.length > 0 && anchorValue.length > 0) {
+        [[NSUserDefaults standardUserDefaults] setObject:anchorValue forKey:anchorKey];
+    }
+    if (lastFetchKey.length > 0) {
+        [[NSUserDefaults standardUserDefaults] setObject:[NSDate date] forKey:lastFetchKey];
+    }
+}
+
 - (void)_setPersistenceForTask:(NSNumber *)taskId
                      anchorKey:(NSString *)anchorKey
                    anchorValue:(NSString *)anchorValue
@@ -205,12 +216,7 @@ RCT_EXPORT_MODULE();
     os_unfair_lock_unlock(&_taskLock);
     // Task already expired and was released — write anchor directly as fallback
     NSLog(@"[HealthSync] task %@ already released, persisting anchor directly", taskId);
-    if (anchorKey.length > 0 && anchorValue.length > 0) {
-        [[NSUserDefaults standardUserDefaults] setObject:anchorValue forKey:anchorKey];
-    }
-    if (lastFetchKey.length > 0) {
-        [[NSUserDefaults standardUserDefaults] setObject:[NSDate date] forKey:lastFetchKey];
-    }
+    [RCTAppleHealthKit _persistAnchorKey:anchorKey value:anchorValue lastFetchKey:lastFetchKey];
 }
 
 - (void)_releaseHeadlessTask:(NSNumber *)taskId {
@@ -228,12 +234,7 @@ RCT_EXPORT_MODULE();
     [_pendingTasks removeObjectForKey:taskId];
     os_unfair_lock_unlock(&_taskLock);
 
-    if (anchorKey.length > 0 && anchorValue.length > 0) {
-        [[NSUserDefaults standardUserDefaults] setObject:anchorValue forKey:anchorKey];
-    }
-    if (lastFetchKey.length > 0) {
-        [[NSUserDefaults standardUserDefaults] setObject:[NSDate date] forKey:lastFetchKey];
-    }
+    [RCTAppleHealthKit _persistAnchorKey:anchorKey value:anchorValue lastFetchKey:lastFetchKey];
     if (handler) handler();
     if (bgTask != UIBackgroundTaskInvalid) {
         dispatch_async(dispatch_get_main_queue(), ^{

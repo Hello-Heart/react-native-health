@@ -18,4 +18,8 @@
                    anchorValue:(NSString *)anchorValue
                   lastFetchKey:(NSString *)lastFetchKey;
 
++ (void)_persistAnchorKey:(NSString *)anchorKey
+                    value:(NSString *)anchorValue
+             lastFetchKey:(NSString *)lastFetchKey;
+
 @end

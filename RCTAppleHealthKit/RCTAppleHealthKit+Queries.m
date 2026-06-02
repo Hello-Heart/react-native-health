@@ -1718,10 +1718,7 @@
                             return;
                         }
                         NSString *newAnchorString = results[@"anchor"];
-                        if (newAnchorString.length > 0) {
-                            [[NSUserDefaults standardUserDefaults] setObject:newAnchorString forKey:anchorKey];
-                        }
-                        [[NSUserDefaults standardUserDefaults] setObject:[NSDate date] forKey:lastFetchKey];
+                        [RCTAppleHealthKit _persistAnchorKey:anchorKey value:newAnchorString lastFetchKey:lastFetchKey];
                         if (self.hasListeners) {
                             [self emitEventWithName:deltaEvent andPayload:results];
                             [self emitEventWithName:newEvent andPayload:@{}];
@@ -1822,11 +1819,7 @@
                     }
                     // Persist new anchor BEFORE emitting — next delivery starts correctly
                     NSString *newAnchorString = results[@"anchor"];
-                    if (newAnchorString.length > 0) {
-                        [[NSUserDefaults standardUserDefaults] setObject:newAnchorString forKey:anchorKey];
-                    }
-                    // Stamp last-fetch time so the time gate works on the next observer fire
-                    [[NSUserDefaults standardUserDefaults] setObject:[NSDate date] forKey:lastFetchKey];
+                    [RCTAppleHealthKit _persistAnchorKey:anchorKey value:newAnchorString lastFetchKey:lastFetchKey];
                     if (self.hasListeners) {
                         [self emitEventWithName:deltaEvent andPayload:results];
                         // Keep :new for backwards compatibility
