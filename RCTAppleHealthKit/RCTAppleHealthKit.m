@@ -162,8 +162,18 @@ RCT_EXPORT_MODULE();
         if (anchorKey.length > 0)    task[@"anchorKey"]    = anchorKey;
         if (anchorValue.length > 0)  task[@"anchorValue"]  = anchorValue;
         if (lastFetchKey.length > 0) task[@"lastFetchKey"] = lastFetchKey;
+        os_unfair_lock_unlock(&_taskLock);
+        return;
     }
     os_unfair_lock_unlock(&_taskLock);
+    // Task already expired and was released — write anchor directly as fallback
+    NSLog(@"[HealthSync] task %@ already released, persisting anchor directly", taskId);
+    if (anchorKey.length > 0 && anchorValue.length > 0) {
+        [[NSUserDefaults standardUserDefaults] setObject:anchorValue forKey:anchorKey];
+    }
+    if (lastFetchKey.length > 0) {
+        [[NSUserDefaults standardUserDefaults] setObject:[NSDate date] forKey:lastFetchKey];
+    }
 }
 
 - (void)_releaseHeadlessTask:(NSNumber *)taskId {
