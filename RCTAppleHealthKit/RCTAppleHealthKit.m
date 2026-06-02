@@ -1347,7 +1347,7 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
     [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
-RCT_EXPORT_METHOD(setBackgroundHandlerRegistered:(BOOL)registered) {
+RCT_EXPORT_METHOD(registerBackgroundHandler:(BOOL)registered) {
     self.backgroundHandlerRegistered = registered;
 }
 
