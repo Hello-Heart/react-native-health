@@ -1624,7 +1624,10 @@
                 return;
             }
 
-            // Workout: bare :new only (full delta via getDeltaSamples)
+            // Workout: no inline data fetch - emit :new and complete immediately.
+            // UIBackgroundTask fence intentionally skipped: the observer signals
+            // that new workout data exists; JS uses getDeltaSamples to retrieve it.
+            // backgroundHandlerRegistered does not change this path.
             if ([type isEqualToString:@"Workout"]) {
                 if (self.hasListeners) {
                     [self emitEventWithName:newEvent andPayload:@{}];
@@ -1633,7 +1636,8 @@
                 return;
             }
 
-            // MindfulSession: no delta fetcher available, emit :new only
+            // MindfulSession: no anchored delta fetcher exists for this type - emit :new only.
+            // UIBackgroundTask fence intentionally skipped for the same reason as Workout above.
             if ([type isEqualToString:@"MindfulSession"]) {
                 if (self.hasListeners) {
                     [self emitEventWithName:newEvent andPayload:@{}];
