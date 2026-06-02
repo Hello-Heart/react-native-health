@@ -1670,31 +1670,57 @@
                     }
                 }
 
+                // Headless Task path: UIBackgroundTask fences the full fetch+upload cycle
+                NSNumber *sleepTaskId = nil;
+                if (_backgroundHandlerRegistered) {
+                    sleepTaskId = [self _beginHeadlessTaskWithCompletionHandler:completionHandler];
+                }
+
                 HKCategoryType *sleepType = [HKObjectType categoryTypeForIdentifier:HKCategoryTypeIdentifierSleepAnalysis];
                 [self fetchAnchoredCategorySamplesOfType:sleepType
                                                predicate:nil
                                                   anchor:storedAnchor
                                                    limit:HKObjectQueryNoLimit
                                               completion:^(NSDictionary *results, NSError *fetchError) {
-                    completionHandler();
-
-                    if (fetchError || !results) {
-                        NSLog(@"[HealthKit] Sleep delta fetch error: %@", fetchError.localizedDescription);
-                        if (self.hasListeners) {
-                            [self emitEventWithName:failureEvent andPayload:@{}];
+                    if (sleepTaskId) {
+                        // Headless path: completionHandler deferred until JS upload completes
+                        if (fetchError || !results) {
+                            NSLog(@"[HealthKit] Sleep delta fetch error: %@", fetchError.localizedDescription);
+                            [self _releaseHeadlessTask:sleepTaskId];
+                            if (self.hasListeners) {
+                                [self emitEventWithName:failureEvent andPayload:@{}];
+                            }
+                            return;
                         }
-                        return;
-                    }
-
-                    NSString *newAnchorString = results[@"anchor"];
-                    if (newAnchorString.length > 0) {
-                        [[NSUserDefaults standardUserDefaults] setObject:newAnchorString forKey:anchorKey];
-                    }
-                    [[NSUserDefaults standardUserDefaults] setObject:[NSDate date] forKey:lastFetchKey];
-
-                    if (self.hasListeners) {
-                        [self emitEventWithName:deltaEvent andPayload:results];
-                        [self emitEventWithName:newEvent andPayload:@{}];
+                        NSString *newAnchorString = results[@"anchor"];
+                        if (newAnchorString.length > 0) {
+                            [[NSUserDefaults standardUserDefaults] setObject:newAnchorString forKey:anchorKey];
+                        }
+                        [[NSUserDefaults standardUserDefaults] setObject:[NSDate date] forKey:lastFetchKey];
+                        if (self.hasListeners) {
+                            [self emitEventWithName:deltaEvent andPayload:results];
+                            [self emitEventWithName:newEvent andPayload:@{}];
+                        }
+                        [self launchHeadlessTask:sleepTaskId withType:type results:results];
+                    } else {
+                        // Existing path
+                        completionHandler();
+                        if (fetchError || !results) {
+                            NSLog(@"[HealthKit] Sleep delta fetch error: %@", fetchError.localizedDescription);
+                            if (self.hasListeners) {
+                                [self emitEventWithName:failureEvent andPayload:@{}];
+                            }
+                            return;
+                        }
+                        NSString *newAnchorString = results[@"anchor"];
+                        if (newAnchorString.length > 0) {
+                            [[NSUserDefaults standardUserDefaults] setObject:newAnchorString forKey:anchorKey];
+                        }
+                        [[NSUserDefaults standardUserDefaults] setObject:[NSDate date] forKey:lastFetchKey];
+                        if (self.hasListeners) {
+                            [self emitEventWithName:deltaEvent andPayload:results];
+                            [self emitEventWithName:newEvent andPayload:@{}];
+                        }
                     }
                 }];
                 return;
@@ -1741,6 +1767,12 @@
 
             HKUnit *unit = [RCTAppleHealthKit defaultHKUnitForType:type];
 
+            // Headless Task path: UIBackgroundTask fences the full fetch+upload cycle
+            NSNumber *quantityTaskId = nil;
+            if (_backgroundHandlerRegistered) {
+                quantityTaskId = [self _beginHeadlessTaskWithCompletionHandler:completionHandler];
+            }
+
             [self fetchAnchoredSamplesOfType:quantityType
                                         unit:unit
                                    predicate:nil
@@ -1749,30 +1781,52 @@
                           includeManuallyAdded:YES
                                   completion:^(NSDictionary *results, NSError *fetchError) {
 
-                // Always call completionHandler — HealthKit stops background delivery if omitted
-                completionHandler();
-
-                if (fetchError || !results) {
-                    NSLog(@"[HealthKit] Delta fetch error for %@: %@", type, fetchError.localizedDescription);
-                    if (self.hasListeners) {
-                        [self emitEventWithName:failureEvent andPayload:@{}];
+                if (quantityTaskId) {
+                    // Headless path: completionHandler deferred until JS upload completes
+                    if (fetchError || !results) {
+                        NSLog(@"[HealthKit] Delta fetch error for %@: %@", type, fetchError.localizedDescription);
+                        [self _releaseHeadlessTask:quantityTaskId];
+                        if (self.hasListeners) {
+                            [self emitEventWithName:failureEvent andPayload:@{}];
+                        }
+                        return;
                     }
-                    return;
-                }
+                    // Persist new anchor BEFORE launching headless task
+                    NSString *newAnchorString = results[@"anchor"];
+                    if (newAnchorString.length > 0) {
+                        [[NSUserDefaults standardUserDefaults] setObject:newAnchorString forKey:anchorKey];
+                    }
+                    [[NSUserDefaults standardUserDefaults] setObject:[NSDate date] forKey:lastFetchKey];
+                    // Emit to any active foreground subscribeHealthDelta listeners
+                    if (self.hasListeners) {
+                        [self emitEventWithName:deltaEvent andPayload:results];
+                        [self emitEventWithName:newEvent andPayload:@{}];
+                    }
+                    [self launchHeadlessTask:quantityTaskId withType:type results:results];
+                } else {
+                    // Existing path (no onWakeUp registered)
+                    // Always call completionHandler — HealthKit stops background delivery if omitted
+                    completionHandler();
 
-                // Persist new anchor BEFORE emitting — next delivery starts correctly
-                NSString *newAnchorString = results[@"anchor"];
-                if (newAnchorString.length > 0) {
-                    [[NSUserDefaults standardUserDefaults] setObject:newAnchorString forKey:anchorKey];
-                }
-
-                // Stamp last-fetch time so the time gate works on the next observer fire
-                [[NSUserDefaults standardUserDefaults] setObject:[NSDate date] forKey:lastFetchKey];
-
-                if (self.hasListeners) {
-                    [self emitEventWithName:deltaEvent andPayload:results];
-                    // Keep :new for backwards compatibility
-                    [self emitEventWithName:newEvent andPayload:@{}];
+                    if (fetchError || !results) {
+                        NSLog(@"[HealthKit] Delta fetch error for %@: %@", type, fetchError.localizedDescription);
+                        if (self.hasListeners) {
+                            [self emitEventWithName:failureEvent andPayload:@{}];
+                        }
+                        return;
+                    }
+                    // Persist new anchor BEFORE emitting — next delivery starts correctly
+                    NSString *newAnchorString = results[@"anchor"];
+                    if (newAnchorString.length > 0) {
+                        [[NSUserDefaults standardUserDefaults] setObject:newAnchorString forKey:anchorKey];
+                    }
+                    // Stamp last-fetch time so the time gate works on the next observer fire
+                    [[NSUserDefaults standardUserDefaults] setObject:[NSDate date] forKey:lastFetchKey];
+                    if (self.hasListeners) {
+                        [self emitEventWithName:deltaEvent andPayload:results];
+                        // Keep :new for backwards compatibility
+                        [self emitEventWithName:newEvent andPayload:@{}];
+                    }
                 }
             }];
         }];

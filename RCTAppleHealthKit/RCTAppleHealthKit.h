@@ -29,4 +29,9 @@
 - (void)initializeBackgroundObservers:(RCTBridge *)bridge metrics:(nullable NSArray<NSString *> *)metrics;
 - (void)emitEventWithName:(NSString *)name andPayload:(NSDictionary *)payload;
 
+// Background Headless Task support
+- (void)launchHeadlessTask:(NSNumber *)taskId withType:(NSString *)type results:(NSDictionary *)results;
+- (NSNumber *)_beginHeadlessTaskWithCompletionHandler:(HKObserverQueryCompletionHandler)handler;
+- (void)_releaseHeadlessTask:(NSNumber *)taskId;
+
 @end

@@ -30,11 +30,19 @@
 #import <React/RCTBridgeModule.h>
 #import <React/RCTEventDispatcher.h>
 #import <os/lock.h>
+#import <UIKit/UIKit.h>
 
 
 @implementation RCTAppleHealthKit {
     BOOL _observersInitialized;
     os_unfair_lock _initLock;
+    NSMutableDictionary<NSNumber *, NSMutableDictionary *> *_pendingTasks;
+    os_unfair_lock _taskLock;
+    BOOL _backgroundHandlerRegistered;
+    BOOL _pendingWakeUp;
+    NSNumber *_pendingWakeUpTaskId;
+    NSString *_pendingWakeUpType;
+    NSDictionary *_pendingWakeUpResults;
 }
 
 bool hasListeners;
@@ -62,7 +70,88 @@ RCT_EXPORT_MODULE();
 
 - (id) init
 {
-    return [super init];
+    self = [super init];
+    if (self) {
+        _pendingTasks = [NSMutableDictionary dictionary];
+        _taskLock = OS_UNFAIR_LOCK_INIT;
+    }
+    return self;
+}
+
+- (void)setBridge:(RCTBridge *)bridge {
+    [super setBridge:bridge];
+    if (_pendingWakeUp && bridge) {
+        _pendingWakeUp = NO;
+        NSNumber *taskId = _pendingWakeUpTaskId;
+        NSString *type = _pendingWakeUpType;
+        NSDictionary *results = _pendingWakeUpResults;
+        _pendingWakeUpTaskId = nil;
+        _pendingWakeUpType = nil;
+        _pendingWakeUpResults = nil;
+        [self launchHeadlessTask:taskId withType:type results:results];
+    }
+}
+
+- (void)launchHeadlessTask:(NSNumber *)taskId withType:(NSString *)type results:(NSDictionary *)results {
+    if (!self.bridge) {
+        _pendingWakeUp = YES;
+        _pendingWakeUpTaskId = taskId;
+        _pendingWakeUpType = type;
+        _pendingWakeUpResults = results;
+        return;
+    }
+    NSMutableDictionary *taskData = [NSMutableDictionary dictionaryWithDictionary:@{
+        @"taskId":     taskId,
+        @"metric":     type ?: @"",
+        @"samples":    results[@"data"] ?: @[],
+        @"deletedIds": results[@"deletedIds"] ?: @[],
+        @"anchor":     results[@"anchor"] ?: @"",
+    }];
+    [self.bridge enqueueJSCall:@"AppRegistry"
+                        method:@"startHeadlessTask"
+                          args:@[taskId, @"HealthBackgroundSync", taskData]
+                    completion:nil];
+}
+
+- (NSNumber *)_beginHeadlessTaskWithCompletionHandler:(HKObserverQueryCompletionHandler)handler {
+    NSNumber *taskId = @(arc4random());
+    __weak typeof(self) weakSelf = self;
+
+    UIBackgroundTaskIdentifier bgTaskId = [[UIApplication sharedApplication]
+        beginBackgroundTaskWithExpirationHandler:^{
+            __strong typeof(self) strongSelf = weakSelf;
+            if (!strongSelf) return;
+            [strongSelf _releaseHeadlessTask:taskId];
+        }];
+
+    os_unfair_lock_lock(&_taskLock);
+    _pendingTasks[taskId] = [NSMutableDictionary dictionaryWithDictionary:@{
+        @"handler":    [handler copy],
+        @"bgTask":     @(bgTaskId),
+        @"completed":  @NO,
+    }];
+    os_unfair_lock_unlock(&_taskLock);
+
+    return taskId;
+}
+
+- (void)_releaseHeadlessTask:(NSNumber *)taskId {
+    os_unfair_lock_lock(&_taskLock);
+    NSMutableDictionary *task = _pendingTasks[taskId];
+    if (!task || [task[@"completed"] boolValue]) {
+        os_unfair_lock_unlock(&_taskLock);
+        return;
+    }
+    task[@"completed"] = @YES;
+    dispatch_block_t handler = task[@"handler"];
+    UIBackgroundTaskIdentifier bgTask = [task[@"bgTask"] unsignedIntegerValue];
+    [_pendingTasks removeObjectForKey:taskId];
+    os_unfair_lock_unlock(&_taskLock);
+
+    if (handler) handler();
+    if (bgTask != UIBackgroundTaskInvalid) {
+        [[UIApplication sharedApplication] endBackgroundTask:bgTask];
+    }
 }
 
 + (BOOL)requiresMainQueueSetup
@@ -1257,6 +1346,15 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
 -(void)stopObserving {
     self.hasListeners = NO;
     [[NSNotificationCenter defaultCenter] removeObserver:self];
+}
+
+RCT_EXPORT_METHOD(setBackgroundHandlerRegistered:(BOOL)registered) {
+    _backgroundHandlerRegistered = registered;
+}
+
+// Called from JS (inside the Headless Task finally block) when upload completes.
+RCT_EXPORT_METHOD(completeHealthTask:(NSNumber *)taskId) {
+    [self _releaseHeadlessTask:taskId];
 }
 
 @end
