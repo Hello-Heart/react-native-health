@@ -118,15 +118,24 @@ RCT_EXPORT_MODULE();
 }
 
 - (NSNumber *)_beginHeadlessTaskWithCompletionHandler:(HKObserverQueryCompletionHandler)handler {
-    NSNumber *taskId = @(arc4random());
     __weak typeof(self) weakSelf = self;
 
-    UIBackgroundTaskIdentifier bgTaskId = [[UIApplication sharedApplication]
-        beginBackgroundTaskWithExpirationHandler:^{
-            __strong typeof(self) strongSelf = weakSelf;
-            if (!strongSelf) return;
-            [strongSelf _releaseHeadlessTask:taskId];
-        }];
+    // Generate task ID first so the expiry block captures it by value
+    os_unfair_lock_lock(&_taskLock);
+    NSNumber *taskId = @(++_nextTaskId);
+    os_unfair_lock_unlock(&_taskLock);
+
+    // UIApplication must be accessed on the main thread; dispatch_sync is safe here
+    // because this method is only called from HealthKit callbacks (background queue)
+    __block UIBackgroundTaskIdentifier bgTaskId = UIBackgroundTaskInvalid;
+    dispatch_sync(dispatch_get_main_queue(), ^{
+        bgTaskId = [[UIApplication sharedApplication]
+            beginBackgroundTaskWithExpirationHandler:^{
+                __strong typeof(self) strongSelf = weakSelf;
+                if (!strongSelf) return;
+                [strongSelf _releaseHeadlessTask:taskId];
+            }];
+    });
 
     os_unfair_lock_lock(&_taskLock);
     _pendingTasks[taskId] = [NSMutableDictionary dictionaryWithDictionary:@{
