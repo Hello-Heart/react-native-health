@@ -33,6 +33,10 @@
 // Background Headless Task support
 - (void)launchHeadlessTask:(NSNumber *)taskId withType:(NSString *)type results:(NSDictionary *)results;
 - (NSNumber *)_beginHeadlessTaskWithCompletionHandler:(HKObserverQueryCompletionHandler)handler;
+- (void)_setPersistenceForTask:(NSNumber *)taskId
+                     anchorKey:(NSString *)anchorKey
+                   anchorValue:(NSString *)anchorValue
+                  lastFetchKey:(NSString *)lastFetchKey;
 - (void)_releaseHeadlessTask:(NSNumber *)taskId;
 
 @end

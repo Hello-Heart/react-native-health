@@ -152,6 +152,20 @@ RCT_EXPORT_MODULE();
     return taskId;
 }
 
+- (void)_setPersistenceForTask:(NSNumber *)taskId
+                     anchorKey:(NSString *)anchorKey
+                   anchorValue:(NSString *)anchorValue
+                  lastFetchKey:(NSString *)lastFetchKey {
+    os_unfair_lock_lock(&_taskLock);
+    NSMutableDictionary *task = _pendingTasks[taskId];
+    if (task) {
+        if (anchorKey.length > 0)    task[@"anchorKey"]    = anchorKey;
+        if (anchorValue.length > 0)  task[@"anchorValue"]  = anchorValue;
+        if (lastFetchKey.length > 0) task[@"lastFetchKey"] = lastFetchKey;
+    }
+    os_unfair_lock_unlock(&_taskLock);
+}
+
 - (void)_releaseHeadlessTask:(NSNumber *)taskId {
     os_unfair_lock_lock(&_taskLock);
     NSMutableDictionary *task = _pendingTasks[taskId];
@@ -160,14 +174,25 @@ RCT_EXPORT_MODULE();
         return;
     }
     task[@"completed"] = @YES;
-    dispatch_block_t handler = task[@"handler"];
+    HKObserverQueryCompletionHandler handler = task[@"handler"];
     UIBackgroundTaskIdentifier bgTask = [task[@"bgTask"] unsignedIntegerValue];
+    NSString *anchorKey    = task[@"anchorKey"];
+    NSString *anchorValue  = task[@"anchorValue"];
+    NSString *lastFetchKey = task[@"lastFetchKey"];
     [_pendingTasks removeObjectForKey:taskId];
     os_unfair_lock_unlock(&_taskLock);
 
+    if (anchorKey.length > 0 && anchorValue.length > 0) {
+        [[NSUserDefaults standardUserDefaults] setObject:anchorValue forKey:anchorKey];
+    }
+    if (lastFetchKey.length > 0) {
+        [[NSUserDefaults standardUserDefaults] setObject:[NSDate date] forKey:lastFetchKey];
+    }
     if (handler) handler();
     if (bgTask != UIBackgroundTaskInvalid) {
-        [[UIApplication sharedApplication] endBackgroundTask:bgTask];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [[UIApplication sharedApplication] endBackgroundTask:bgTask];
+        });
     }
 }
 

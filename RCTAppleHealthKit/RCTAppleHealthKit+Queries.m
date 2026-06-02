@@ -1693,10 +1693,10 @@
                             return;
                         }
                         NSString *newAnchorString = results[@"anchor"];
-                        if (newAnchorString.length > 0) {
-                            [[NSUserDefaults standardUserDefaults] setObject:newAnchorString forKey:anchorKey];
-                        }
-                        [[NSUserDefaults standardUserDefaults] setObject:[NSDate date] forKey:lastFetchKey];
+                        [self _setPersistenceForTask:sleepTaskId
+                                           anchorKey:anchorKey
+                                         anchorValue:newAnchorString
+                                        lastFetchKey:lastFetchKey];
                         if (self.hasListeners) {
                             [self emitEventWithName:deltaEvent andPayload:results];
                             [self emitEventWithName:newEvent andPayload:@{}];
@@ -1791,12 +1791,12 @@
                         }
                         return;
                     }
-                    // Persist new anchor BEFORE launching headless task
+                    // Register anchor for persistence when upload completes
                     NSString *newAnchorString = results[@"anchor"];
-                    if (newAnchorString.length > 0) {
-                        [[NSUserDefaults standardUserDefaults] setObject:newAnchorString forKey:anchorKey];
-                    }
-                    [[NSUserDefaults standardUserDefaults] setObject:[NSDate date] forKey:lastFetchKey];
+                    [self _setPersistenceForTask:quantityTaskId
+                                       anchorKey:anchorKey
+                                     anchorValue:newAnchorString
+                                    lastFetchKey:lastFetchKey];
                     // Emit to any active foreground subscribeHealthDelta listeners
                     if (self.hasListeners) {
                         [self emitEventWithName:deltaEvent andPayload:results];
