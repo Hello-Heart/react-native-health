@@ -165,6 +165,15 @@ RCT_EXPORT_MODULE();
     // UIApplication must be accessed on the main thread; dispatch_sync is safe here
     // because this method is only called from HealthKit callbacks (background queue).
     NSAssert(!NSThread.isMainThread, @"_beginHeadlessTaskWithCompletionHandler: called from main thread — dispatch_sync would deadlock");
+    if (NSThread.isMainThread) {
+        // NSAssert strips in Release — hard-guard so a future main-thread caller falls
+        // back to the non-headless path instead of deadlocking on dispatch_sync.
+        os_unfair_lock_lock(&_taskLock);
+        [_pendingTasks removeObjectForKey:taskId];
+        os_unfair_lock_unlock(&_taskLock);
+        NSLog(@"[HealthSync] _beginHeadlessTask called on main thread for task %@ — using non-headless path", taskId);
+        return nil;
+    }
     __block UIBackgroundTaskIdentifier bgTaskId = UIBackgroundTaskInvalid;
     dispatch_sync(dispatch_get_main_queue(), ^{
         bgTaskId = [[UIApplication sharedApplication]
