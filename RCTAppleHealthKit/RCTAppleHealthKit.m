@@ -123,6 +123,9 @@ RCT_EXPORT_MODULE();
         }];
         os_unfair_lock_unlock(&_taskLock);
         if (evictId) {
+            // Intentional data loss: queue full → oldest task dropped without JS upload.
+            // Bounded at 25 to prevent OOM; burst of background wakes before bridge ready
+            // can trigger this. completionHandler still fires to satisfy HK delivery contract.
             NSLog(@"[HealthSync] pending queue full (25), evicting task %@ — completionHandler fired, data not uploaded", evictId);
             [self _releaseHeadlessTask:evictId];
         }
@@ -160,7 +163,8 @@ RCT_EXPORT_MODULE();
     os_unfair_lock_unlock(&_taskLock);
 
     // UIApplication must be accessed on the main thread; dispatch_sync is safe here
-    // because this method is only called from HealthKit callbacks (background queue)
+    // because this method is only called from HealthKit callbacks (background queue).
+    NSAssert(!NSThread.isMainThread, @"_beginHeadlessTaskWithCompletionHandler: called from main thread — dispatch_sync would deadlock");
     __block UIBackgroundTaskIdentifier bgTaskId = UIBackgroundTaskInvalid;
     dispatch_sync(dispatch_get_main_queue(), ^{
         bgTaskId = [[UIApplication sharedApplication]
@@ -172,7 +176,10 @@ RCT_EXPORT_MODULE();
     });
 
     if (bgTaskId == UIBackgroundTaskInvalid) {
-        // System denied background time (app already in foreground, budget exhausted).
+        // System denied background time (budget exhausted or background execution unavailable).
+        // NOTE: UIBackgroundTaskInvalid is NOT returned when the app is in foreground — the
+        // system still grants a task ID in foreground. Foreground double-upload is prevented
+        // by the consumer guard (AppState.currentState === 'active') in the onWakeUp handler.
         // Clean up and return nil — caller falls back to non-headless path which calls
         // completionHandler() immediately.
         os_unfair_lock_lock(&_taskLock);
@@ -249,6 +256,11 @@ RCT_EXPORT_MODULE();
     [_pendingTasks removeObjectForKey:taskId];
     os_unfair_lock_unlock(&_taskLock);
 
+    // Anchor persists unconditionally — including on OS expiry (30s budget exceeded).
+    // Tradeoff: if JS upload was still in-flight when expiry fired, that delta is lost
+    // permanently (anchor already advanced). Alternative — skipping persist on expiry —
+    // causes HK to re-deliver the same delta next wake, risking duplicate uploads.
+    // Current choice accepts loss over duplicates; see completeHealthTask.md.
     [RCTAppleHealthKit _persistAnchorKey:anchorKey value:anchorValue lastFetchKey:lastFetchKey];
     if (handler) handler();
     if (bgTask != UIBackgroundTaskInvalid) {
@@ -1317,8 +1329,6 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
     }
 
     [self _initializeHealthStore];
-
-    if (bridge) self.bridge = bridge;
 
     if ([HKHealthStore isHealthDataAvailable]) {
         NSArray *allFitnessObservers = @[

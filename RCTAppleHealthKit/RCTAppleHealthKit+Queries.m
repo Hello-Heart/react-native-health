@@ -1702,6 +1702,8 @@
                                            anchorKey:anchorKey
                                          anchorValue:newAnchorString
                                         lastFetchKey:lastFetchKey];
+                        // WARNING: same foreground double-fire as quantity path — consumer
+                        // onWakeUp MUST guard AppState.currentState === 'active'.
                         if (self.hasListeners) {
                             [self emitEventWithName:deltaEvent andPayload:results];
                             [self emitEventWithName:newEvent andPayload:@{}];
@@ -1799,7 +1801,11 @@
                                        anchorKey:anchorKey
                                      anchorValue:newAnchorString
                                     lastFetchKey:lastFetchKey];
-                    // Emit to any active foreground subscribeHealthDelta listeners
+                    // Emit to any active foreground subscribeHealthDelta listeners.
+                    // WARNING: when app is in foreground, BOTH this emit AND launchHeadlessTask
+                    // fire. Consumers MUST guard against double-upload with:
+                    //   if (AppState.currentState === 'active') return
+                    // inside their onWakeUp handler.
                     if (self.hasListeners) {
                         [self emitEventWithName:deltaEvent andPayload:results];
                         [self emitEventWithName:newEvent andPayload:@{}];
