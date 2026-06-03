@@ -19,6 +19,7 @@
 
 @property (nonatomic) HKHealthStore *healthStore;
 @property (nonatomic, assign) BOOL hasListeners;
+@property (atomic, assign) BOOL backgroundHandlerRegistered;
 
 - (HKHealthStore *)_initializeHealthStore;
 - (void)isHealthKitAvailable:(RCTResponseSenderBlock)callback;
@@ -28,5 +29,8 @@
 - (void)initializeBackgroundObservers:(RCTBridge *)bridge;
 - (void)initializeBackgroundObservers:(RCTBridge *)bridge metrics:(nullable NSArray<NSString *> *)metrics;
 - (void)emitEventWithName:(NSString *)name andPayload:(NSDictionary *)payload;
+
+// Background Headless Task support
+- (void)launchHeadlessTask:(NSNumber *)taskId withType:(NSString *)type results:(NSDictionary *)results;
 
 @end

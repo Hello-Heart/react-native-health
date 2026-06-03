@@ -159,6 +159,10 @@ declare module 'react-native-health' {
 
     configureBackgroundSync(options: BackgroundSyncOptions): void
 
+    registerBackgroundHandler(registered: boolean): void
+
+    completeHealthTask(taskId: number): void
+
     getDeltaSamples(
       options: DeltaQueryOptions,
       callback: (err: HKErrorResponse, results: DeltaQueryResult) => void,

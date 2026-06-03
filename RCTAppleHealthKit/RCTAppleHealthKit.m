@@ -30,11 +30,16 @@
 #import <React/RCTBridgeModule.h>
 #import <React/RCTEventDispatcher.h>
 #import <os/lock.h>
+#import <UIKit/UIKit.h>
 
 
 @implementation RCTAppleHealthKit {
     BOOL _observersInitialized;
     os_unfair_lock _initLock;
+    NSMutableDictionary<NSNumber *, NSMutableDictionary *> *_pendingTasks;
+    os_unfair_lock _taskLock;
+    uint32_t _nextTaskId;
+    NSMutableArray<NSDictionary *> *_pendingWakeUpTasks;
 }
 
 bool hasListeners;
@@ -62,7 +67,216 @@ RCT_EXPORT_MODULE();
 
 - (id) init
 {
-    return [super init];
+    self = [super init];
+    if (self) {
+        _pendingTasks = [NSMutableDictionary dictionary];
+        _pendingWakeUpTasks = [NSMutableArray array];
+        _taskLock = OS_UNFAIR_LOCK_INIT;
+        _nextTaskId = 0;
+        // Restore across app kills: observer callbacks check this flag before launching
+        // a headless task. Without persistence the flag resets to NO on every cold start,
+        // causing HealthKit to skip the headless path until JS runs registerBackgroundHandler.
+        _backgroundHandlerRegistered = [[NSUserDefaults standardUserDefaults]
+            boolForKey:@"RNHealth_BackgroundHandlerRegistered"];
+    }
+    return self;
+}
+
+- (void)setBridge:(RCTBridge *)bridge {
+    [super setBridge:bridge];
+    if (!bridge) return;
+
+    // Re-register HKObserverQueries on every cold start using persisted config.
+    // HKObserverQuery is in-memory only — killed process loses all queries.
+    // Without re-registration HealthKit wakes the app but has no query to call back,
+    // so the observer callback never fires and the headless task never launches.
+    BOOL syncEnabled = [[NSUserDefaults standardUserDefaults]
+        boolForKey:@"RNHealth_SyncEnabled"];
+    if (syncEnabled && [HKHealthStore isHealthDataAvailable]) {
+        [self initializeBackgroundObservers:bridge];
+    }
+
+    os_unfair_lock_lock(&_taskLock);
+    NSArray<NSDictionary *> *drained = [_pendingWakeUpTasks copy];
+    [_pendingWakeUpTasks removeAllObjects];
+    os_unfair_lock_unlock(&_taskLock);
+
+    for (NSDictionary *item in drained) {
+        [self launchHeadlessTask:item[@"taskId"]
+                        withType:item[@"type"]
+                         results:item[@"results"]];
+    }
+}
+
+- (void)launchHeadlessTask:(NSNumber *)taskId withType:(NSString *)type results:(NSDictionary *)results {
+    if (!self.bridge) {
+        NSNumber *evictId = nil;
+        os_unfair_lock_lock(&_taskLock);
+        if (_pendingWakeUpTasks.count >= 25) {
+            evictId = _pendingWakeUpTasks.firstObject[@"taskId"];
+            [_pendingWakeUpTasks removeObjectAtIndex:0];
+        }
+        [_pendingWakeUpTasks addObject:@{
+            @"taskId":  taskId,
+            @"type":    type ?: @"",
+            @"results": results ?: @{},
+        }];
+        os_unfair_lock_unlock(&_taskLock);
+        if (evictId) {
+            // Intentional data loss: queue full → oldest task dropped without JS upload.
+            // Bounded at 25 to prevent OOM; burst of background wakes before bridge ready
+            // can trigger this. completionHandler still fires to satisfy HK delivery contract.
+            NSLog(@"[HealthSync] pending queue full (25), evicting task %@ — completionHandler fired, data not uploaded", evictId);
+            [self _releaseHeadlessTask:evictId];
+        }
+        return;
+    }
+    NSDictionary *taskData = @{
+        @"taskId":     taskId,
+        @"metric":     type ?: @"",
+        @"samples":    results[@"added"] ?: @[],
+        @"deletedIds": results[@"deleted"] ?: @[],
+        @"anchor":     results[@"anchor"] ?: @"",
+    };
+    // NOTE: enqueueJSCall is a legacy RCTBridge API. Headless JS is not supported
+    // in New Architecture bridgeless mode (RN 0.74+) — if bridge is nil the guard
+    // above handles it; if bridge exists we are on legacy arch where this API works.
+    NSLog(@"[HealthSync] background wake: launching headless task %@ for metric %@", taskId, type);
+    [self.bridge enqueueJSCall:@"AppRegistry"
+                        method:@"startHeadlessTask"
+                          args:@[taskId, @"HealthBackgroundSync", taskData]
+                    completion:nil];
+}
+
+- (NSNumber *)_beginHeadlessTaskWithCompletionHandler:(HKObserverQueryCompletionHandler)handler {
+    __weak typeof(self) weakSelf = self;
+
+    // Insert entry BEFORE registering the background task so the expiry block
+    // always finds a valid entry in _pendingTasks, even if it fires during
+    // the dispatch_sync below.
+    os_unfair_lock_lock(&_taskLock);
+    NSNumber *taskId = @(++_nextTaskId);
+    _pendingTasks[taskId] = [NSMutableDictionary dictionaryWithDictionary:@{
+        @"handler": [handler copy],
+        @"bgTask":  @(UIBackgroundTaskInvalid),
+    }];
+    os_unfair_lock_unlock(&_taskLock);
+
+    // UIApplication must be accessed on the main thread; dispatch_sync is safe here
+    // because this method is only called from HealthKit callbacks (background queue).
+    NSAssert(!NSThread.isMainThread, @"_beginHeadlessTaskWithCompletionHandler: called from main thread — dispatch_sync would deadlock");
+    if (NSThread.isMainThread) {
+        // NSAssert strips in Release — hard-guard so a future main-thread caller falls
+        // back to the non-headless path instead of deadlocking on dispatch_sync.
+        os_unfair_lock_lock(&_taskLock);
+        [_pendingTasks removeObjectForKey:taskId];
+        os_unfair_lock_unlock(&_taskLock);
+        NSLog(@"[HealthSync] _beginHeadlessTask called on main thread for task %@ — using non-headless path", taskId);
+        return nil;
+    }
+    __block UIBackgroundTaskIdentifier bgTaskId = UIBackgroundTaskInvalid;
+    dispatch_sync(dispatch_get_main_queue(), ^{
+        bgTaskId = [[UIApplication sharedApplication]
+            beginBackgroundTaskWithExpirationHandler:^{
+                __strong typeof(self) strongSelf = weakSelf;
+                if (!strongSelf) return;
+                [strongSelf _releaseHeadlessTask:taskId];
+            }];
+    });
+
+    if (bgTaskId == UIBackgroundTaskInvalid) {
+        // System denied background time (budget exhausted or background execution unavailable).
+        // NOTE: UIBackgroundTaskInvalid is NOT returned when the app is in foreground — the
+        // system still grants a task ID in foreground. Foreground double-upload is prevented
+        // by the consumer guard (AppState.currentState === 'active') in the onWakeUp handler.
+        // Clean up and return nil — caller falls back to non-headless path which calls
+        // completionHandler() immediately.
+        os_unfair_lock_lock(&_taskLock);
+        [_pendingTasks removeObjectForKey:taskId];
+        os_unfair_lock_unlock(&_taskLock);
+        NSLog(@"[HealthSync] beginBackgroundTask returned Invalid for task %@ — using non-headless path", taskId);
+        return nil;
+    }
+
+    // Update the bgTask identifier now that we have it.
+    // If the expiry already fired during dispatch_sync (task removed from dict),
+    // end the background task ourselves since _releaseHeadlessTask saw UIBackgroundTaskInvalid.
+    BOOL alreadyReleased = NO;
+    os_unfair_lock_lock(&_taskLock);
+    NSMutableDictionary *task = _pendingTasks[taskId];
+    if (task) {
+        task[@"bgTask"] = @(bgTaskId);
+    } else {
+        alreadyReleased = YES;
+    }
+    os_unfair_lock_unlock(&_taskLock);
+
+    if (alreadyReleased) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [[UIApplication sharedApplication] endBackgroundTask:bgTaskId];
+        });
+    }
+
+    return taskId;
+}
+
++ (void)_persistAnchorKey:(NSString *)anchorKey
+                    value:(NSString *)anchorValue
+             lastFetchKey:(NSString *)lastFetchKey {
+    if (anchorKey.length > 0 && anchorValue.length > 0) {
+        [[NSUserDefaults standardUserDefaults] setObject:anchorValue forKey:anchorKey];
+    }
+    if (lastFetchKey.length > 0) {
+        [[NSUserDefaults standardUserDefaults] setObject:[NSDate date] forKey:lastFetchKey];
+    }
+}
+
+- (void)_setPersistenceForTask:(NSNumber *)taskId
+                     anchorKey:(NSString *)anchorKey
+                   anchorValue:(NSString *)anchorValue
+                  lastFetchKey:(NSString *)lastFetchKey {
+    os_unfair_lock_lock(&_taskLock);
+    NSMutableDictionary *task = _pendingTasks[taskId];
+    if (task) {
+        if (anchorKey.length > 0)    task[@"anchorKey"]    = anchorKey;
+        if (anchorValue.length > 0)  task[@"anchorValue"]  = anchorValue;
+        if (lastFetchKey.length > 0) task[@"lastFetchKey"] = lastFetchKey;
+        os_unfair_lock_unlock(&_taskLock);
+        return;
+    }
+    os_unfair_lock_unlock(&_taskLock);
+    // Task already expired and was released — write anchor directly as fallback
+    NSLog(@"[HealthSync] task %@ already released, persisting anchor directly", taskId);
+    [RCTAppleHealthKit _persistAnchorKey:anchorKey value:anchorValue lastFetchKey:lastFetchKey];
+}
+
+- (void)_releaseHeadlessTask:(NSNumber *)taskId {
+    os_unfair_lock_lock(&_taskLock);
+    NSMutableDictionary *task = _pendingTasks[taskId];
+    if (!task) {
+        os_unfair_lock_unlock(&_taskLock);
+        return;
+    }
+    HKObserverQueryCompletionHandler handler = task[@"handler"];
+    UIBackgroundTaskIdentifier bgTask = [task[@"bgTask"] unsignedIntegerValue];
+    NSString *anchorKey    = task[@"anchorKey"];
+    NSString *anchorValue  = task[@"anchorValue"];
+    NSString *lastFetchKey = task[@"lastFetchKey"];
+    [_pendingTasks removeObjectForKey:taskId];
+    os_unfair_lock_unlock(&_taskLock);
+
+    // Anchor persists unconditionally — including on OS expiry (30s budget exceeded).
+    // Tradeoff: if JS upload was still in-flight when expiry fired, that delta is lost
+    // permanently (anchor already advanced). Alternative — skipping persist on expiry —
+    // causes HK to re-deliver the same delta next wake, risking duplicate uploads.
+    // Current choice accepts loss over duplicates; see completeHealthTask.md.
+    [RCTAppleHealthKit _persistAnchorKey:anchorKey value:anchorValue lastFetchKey:lastFetchKey];
+    if (handler) handler();
+    if (bgTask != UIBackgroundTaskInvalid) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [[UIApplication sharedApplication] endBackgroundTask:bgTask];
+        });
+    }
 }
 
 + (BOOL)requiresMainQueueSetup
@@ -1125,8 +1339,6 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
 
     [self _initializeHealthStore];
 
-    if (bridge) self.bridge = bridge;
-
     if ([HKHealthStore isHealthDataAvailable]) {
         NSArray *allFitnessObservers = @[
             @"ActiveEnergyBurned",
@@ -1257,6 +1469,17 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
 -(void)stopObserving {
     self.hasListeners = NO;
     [[NSNotificationCenter defaultCenter] removeObserver:self];
+}
+
+RCT_EXPORT_METHOD(registerBackgroundHandler:(BOOL)registered) {
+    self.backgroundHandlerRegistered = registered;
+    [[NSUserDefaults standardUserDefaults] setBool:registered
+                                            forKey:@"RNHealth_BackgroundHandlerRegistered"];
+}
+
+// Called from JS (inside the Headless Task finally block) when upload completes.
+RCT_EXPORT_METHOD(completeHealthTask:(NSNumber *)taskId) {
+    [self _releaseHeadlessTask:taskId];
 }
 
 @end
