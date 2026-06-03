@@ -73,6 +73,11 @@ RCT_EXPORT_MODULE();
         _pendingWakeUpTasks = [NSMutableArray array];
         _taskLock = OS_UNFAIR_LOCK_INIT;
         _nextTaskId = 0;
+        // Restore across app kills: observer callbacks check this flag before launching
+        // a headless task. Without persistence the flag resets to NO on every cold start,
+        // causing HealthKit to skip the headless path until JS runs registerBackgroundHandler.
+        _backgroundHandlerRegistered = [[NSUserDefaults standardUserDefaults]
+            boolForKey:@"RNHealth_BackgroundHandlerRegistered"];
     }
     return self;
 }
@@ -1439,6 +1444,8 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
 
 RCT_EXPORT_METHOD(registerBackgroundHandler:(BOOL)registered) {
     self.backgroundHandlerRegistered = registered;
+    [[NSUserDefaults standardUserDefaults] setBool:registered
+                                            forKey:@"RNHealth_BackgroundHandlerRegistered"];
 }
 
 // Called from JS (inside the Headless Task finally block) when upload completes.
