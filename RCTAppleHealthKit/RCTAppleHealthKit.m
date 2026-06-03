@@ -131,8 +131,8 @@ RCT_EXPORT_MODULE();
     NSDictionary *taskData = @{
         @"taskId":     taskId,
         @"metric":     type ?: @"",
-        @"samples":    results[@"data"] ?: @[],
-        @"deletedIds": results[@"deletedIds"] ?: @[],
+        @"samples":    results[@"added"] ?: @[],
+        @"deletedIds": results[@"deleted"] ?: @[],
         @"anchor":     results[@"anchor"] ?: @"",
     };
     // NOTE: enqueueJSCall is a legacy RCTBridge API. Headless JS is not supported
