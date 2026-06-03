@@ -86,6 +86,16 @@ RCT_EXPORT_MODULE();
     [super setBridge:bridge];
     if (!bridge) return;
 
+    // Re-register HKObserverQueries on every cold start using persisted config.
+    // HKObserverQuery is in-memory only — killed process loses all queries.
+    // Without re-registration HealthKit wakes the app but has no query to call back,
+    // so the observer callback never fires and the headless task never launches.
+    BOOL syncEnabled = [[NSUserDefaults standardUserDefaults]
+        boolForKey:@"RNHealth_SyncEnabled"];
+    if (syncEnabled && [HKHealthStore isHealthDataAvailable]) {
+        [self initializeBackgroundObservers:bridge];
+    }
+
     os_unfair_lock_lock(&_taskLock);
     NSArray<NSDictionary *> *drained = [_pendingWakeUpTasks copy];
     [_pendingWakeUpTasks removeAllObjects];
