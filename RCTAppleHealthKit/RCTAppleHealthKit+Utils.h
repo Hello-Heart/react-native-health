@@ -26,6 +26,7 @@ extern NSString * const kMetadataKey;
 + (NSDate *)endDateFromOptions:(NSDictionary *)options;
 + (NSDate *)endDateFromOptionsDefaultNow:(NSDictionary *)options;
 + (HKSampleType *)quantityTypeFromName:(NSString *)type;
++ (HKSampleType *)sampleTypeForObserverType:(NSString *)type;
 + (HKSampleType *)clinicalTypeFromName:(NSString *)type;
 + (HKQueryAnchor *)hkAnchorFromOptions:(NSDictionary *)options;
 + (NSString *)normalizeUnitString:(NSString *)unitString;

@@ -161,6 +161,8 @@ declare module 'react-native-health' {
 
     registerBackgroundHandler(registered: boolean): void
 
+    disableBackgroundSync(metrics: string[] | undefined): void
+
     completeHealthTask(taskId: number): void
 
     getDeltaSamples(

@@ -496,17 +496,7 @@
 - (void)fitness_registerObserver:(NSString *)type
                           bridge:(RCTBridge *)bridge
 {
-    HKSampleType *sampleType;
-    // HKCategoryType observers must be resolved explicitly — quantityTypeFromName only handles
-    // quantity and workout types. Adding a new category type (e.g. HandwashingEvent) without
-    // a branch here will silently skip its observer via the nil-guard below.
-    if ([type isEqualToString:@"SleepAnalysis"]) {
-        sampleType = [HKObjectType categoryTypeForIdentifier:HKCategoryTypeIdentifierSleepAnalysis];
-    } else if ([type isEqualToString:@"MindfulSession"]) { // HKCategoryType — not resolvable via quantityTypeFromName
-        sampleType = [HKObjectType categoryTypeForIdentifier:HKCategoryTypeIdentifierMindfulSession];
-    } else {
-        sampleType = [RCTAppleHealthKit quantityTypeFromName:type];
-    }
+    HKSampleType *sampleType = [RCTAppleHealthKit sampleTypeForObserverType:type];
     if (!sampleType) {
         NSLog(@"[HealthKit] Skipping observer for unknown type: %@", type);
         return;
