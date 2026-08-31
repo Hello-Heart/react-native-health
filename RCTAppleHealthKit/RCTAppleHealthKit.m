@@ -1304,6 +1304,8 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
  */
 // Maps @helloheart/core HealthMetric enum values to the HK type string passed to
 // fitness_registerObserver. Every entry here must also appear in allFitnessObservers.
+// Shared by both arm (initializeBackgroundObservers) and disable
+// (disableBackgroundSyncForMetrics) — keep both paths in sync when editing this map.
 // Metrics with no HK observer type (totalCholesterol, hdlCholesterol, ldlCholesterol,
 // triglycerides) are intentionally absent — they come from clinical records only.
 // bloodPressure maps to BloodPressureSystolic as a proxy: any new BP reading writes
