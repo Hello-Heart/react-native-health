@@ -58,15 +58,6 @@ RCT_EXPORT_MODULE();
     return sharedInstance;
 }
 
-+ (RCTCallableJSModules *)sharedJsModule {
-    static RCTCallableJSModules *sharedJsModule = nil;
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        sharedJsModule = [RCTCallableJSModules new];
-    });
-    return sharedJsModule;
-}
-
 - (id) init
 {
     self = [super init];
@@ -86,9 +77,9 @@ RCT_EXPORT_MODULE();
     return self;
 }
 
-- (void)setBridge:(RCTBridge *)bridge {
-    [super setBridge:bridge];
-    if (!bridge) return;
+- (void)setCallableJSModules:(RCTCallableJSModules *)callableJSModules {
+    [super setCallableJSModules:callableJSModules];
+    if (!callableJSModules) return;
 
     // Re-register HKObserverQueries on every cold start using persisted config.
     // HKObserverQuery is in-memory only — killed process loses all queries.
@@ -97,7 +88,7 @@ RCT_EXPORT_MODULE();
     BOOL syncEnabled = [[NSUserDefaults standardUserDefaults]
         boolForKey:@"RNHealth_SyncEnabled"];
     if (syncEnabled && [HKHealthStore isHealthDataAvailable]) {
-        [self initializeBackgroundObservers:bridge];
+        [self initializeBackgroundObservers:nil];
     }
 
     os_unfair_lock_lock(&_taskLock);
@@ -113,7 +104,7 @@ RCT_EXPORT_MODULE();
 }
 
 - (void)launchHeadlessTask:(NSNumber *)taskId withType:(NSString *)type results:(NSDictionary *)results {
-    if (!self.bridge) {
+    if (!self.callableJSModules) {
         NSNumber *evictId = nil;
         os_unfair_lock_lock(&_taskLock);
         if (_pendingWakeUpTasks.count >= 25) {
@@ -142,14 +133,12 @@ RCT_EXPORT_MODULE();
         @"deletedIds": results[@"deleted"] ?: @[],
         @"anchor":     results[@"anchor"] ?: @"",
     };
-    // NOTE: enqueueJSCall is a legacy RCTBridge API. Headless JS is not supported
-    // in New Architecture bridgeless mode (RN 0.74+) — if bridge is nil the guard
-    // above handles it; if bridge exists we are on legacy arch where this API works.
+    // Bridgeless-safe: RCTCallableJSModules is injected by RN in both architectures.
+    // The guard above returns early (queueing the task) until it is available.
     NSLog(@"[HealthSync] background wake: launching headless task %@ for metric %@", taskId, type);
-    [self.bridge enqueueJSCall:@"AppRegistry"
-                        method:@"startHeadlessTask"
-                          args:@[taskId, @"HealthBackgroundSync", taskData]
-                    completion:nil];
+    [self.callableJSModules invokeModule:@"AppRegistry"
+                                  method:@"startHeadlessTask"
+                                withArgs:@[taskId, @"HealthBackgroundSync", taskData]];
 }
 
 - (NSNumber *)_beginHeadlessTaskWithCompletionHandler:(HKObserverQueryCompletionHandler)handler {
@@ -501,11 +490,11 @@ RCT_EXPORT_METHOD(configureBackgroundSync:(NSDictionary *)input)
         [[NSUserDefaults standardUserDefaults] removeObjectForKey:@"RNHealth_SyncMetrics"];
     }
 
-    if (self.bridge) {
+    if (self.callableJSModules) {
         NSLog(@"[HealthKit] configureBackgroundSync — initializing background observers");
-        [self initializeBackgroundObservers:self.bridge metrics:metrics];
+        [self initializeBackgroundObservers:nil metrics:metrics];
     } else {
-        NSLog(@"[HealthKit] configureBackgroundSync — WARNING: self.bridge is nil, observers NOT registered, will retry");
+        NSLog(@"[HealthKit] configureBackgroundSync — WARNING: callableJSModules is nil, observers NOT registered, will retry");
     }
 
     // Default to NO (opt-in) to match observer behavior: "Defaults to disabled if the key
@@ -1541,9 +1530,7 @@ RCT_EXPORT_METHOD(disableBackgroundSync:(NSArray<NSString *> *)metrics) {
 }
 
 - (void)emitEventInternal:(NSNotification *)notification {
-  if (self.hasListeners && self.bridge) {
-    self.callableJSModules = [RCTAppleHealthKit sharedJsModule];
-    [self.callableJSModules setBridge:self.bridge];
+  if (self.hasListeners) {
     [self sendEventWithName:notification.name
                    body:notification.userInfo];
   }
