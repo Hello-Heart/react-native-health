@@ -1470,7 +1470,8 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
 // logged the same way enableBackgroundDeliveryForType's already is, not awaited by the caller.
 - (void)disableBackgroundSyncForMetrics:(NSArray<NSString *> *)metrics {
     NSArray<NSString *> *typesToDisable;
-    if (metrics.count > 0) {
+    BOOL disablingAll = metrics.count == 0;
+    if (!disablingAll) {
         NSDictionary *map = [RCTAppleHealthKit healthMetricToHKTypeMap];
         NSMutableArray<NSString *> *resolved = [NSMutableArray array];
         for (NSString *metric in metrics) {
@@ -1484,6 +1485,14 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
         typesToDisable = resolved;
     } else {
         typesToDisable = [self activeObserverTypes];
+        // Defense-in-depth against the cold-start race where initializeBackgroundObservers'
+        // async enableBackgroundDeliveryForType completion (which populates the registry)
+        // hasn't fired yet for every type when this runs: anything armed after this point
+        // still gets registered, but its update handler already checks this flag and no-ops
+        // if it's off, so a racing arm can't silently resume real fetch/upload behavior.
+        // Only safe to flip here because this is the disable-ALL path — a partial disable
+        // must not touch this global flag, since other metrics are meant to stay live.
+        [[NSUserDefaults standardUserDefaults] setBool:NO forKey:@"RNHealth_SyncEnabled"];
     }
 
     for (NSString *type in typesToDisable) {
@@ -1497,6 +1506,10 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
 
         HKSampleType *sampleType = [RCTAppleHealthKit sampleTypeForObserverType:type];
         if (!sampleType) {
+            // Structurally shouldn't happen: only types that already resolved via this same
+            // method got into the registry in the first place (see fitness_registerObserver).
+            // Logged in case that invariant is ever broken by a future change.
+            NSLog(@"[HealthKit] disableBackgroundSync: %@ was armed but no longer resolves to an HKSampleType — background delivery left enabled for it", type);
             continue;
         }
 
