@@ -40,6 +40,8 @@
     os_unfair_lock _taskLock;
     uint32_t _nextTaskId;
     NSMutableArray<NSDictionary *> *_pendingWakeUpTasks;
+    NSMutableDictionary<NSString *, HKObserverQuery *> *_activeObserverQueries;
+    os_unfair_lock _observerQueriesLock;
 }
 
 bool hasListeners;
@@ -73,6 +75,8 @@ RCT_EXPORT_MODULE();
         _pendingWakeUpTasks = [NSMutableArray array];
         _taskLock = OS_UNFAIR_LOCK_INIT;
         _nextTaskId = 0;
+        _activeObserverQueries = [NSMutableDictionary dictionary];
+        _observerQueriesLock = OS_UNFAIR_LOCK_INIT;
         // Restore across app kills: observer callbacks check this flag before launching
         // a headless task. Without persistence the flag resets to NO on every cold start,
         // causing HealthKit to skip the headless path until JS runs registerBackgroundHandler.
@@ -1300,6 +1304,8 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
  */
 // Maps @helloheart/core HealthMetric enum values to the HK type string passed to
 // fitness_registerObserver. Every entry here must also appear in allFitnessObservers.
+// Shared by both arm (initializeBackgroundObservers) and disable
+// (disableBackgroundSyncForMetrics) — keep both paths in sync when editing this map.
 // Metrics with no HK observer type (totalCholesterol, hdlCholesterol, ldlCholesterol,
 // triglycerides) are intentionally absent — they come from clinical records only.
 // bloodPressure maps to BloodPressureSystolic as a proxy: any new BP reading writes
@@ -1435,6 +1441,90 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
 
     _observersInitialized = YES;
     os_unfair_lock_unlock(&_initLock);
+}
+
+- (void)registerActiveObserverQuery:(HKObserverQuery *)query forType:(NSString *)type {
+    os_unfair_lock_lock(&_observerQueriesLock);
+    _activeObserverQueries[type] = query;
+    os_unfair_lock_unlock(&_observerQueriesLock);
+}
+
+- (HKObserverQuery *)removeActiveObserverQueryForType:(NSString *)type {
+    os_unfair_lock_lock(&_observerQueriesLock);
+    HKObserverQuery *query = _activeObserverQueries[type];
+    [_activeObserverQueries removeObjectForKey:type];
+    os_unfair_lock_unlock(&_observerQueriesLock);
+    return query;
+}
+
+- (NSArray<NSString *> *)activeObserverTypes {
+    os_unfair_lock_lock(&_observerQueriesLock);
+    NSArray<NSString *> *types = [_activeObserverQueries allKeys];
+    os_unfair_lock_unlock(&_observerQueriesLock);
+    return types;
+}
+
+// Stops HealthKit background delivery for metrics (or, if nil/empty, every currently-armed
+// type). Fire-and-forget, matching configureBackgroundSync/registerBackgroundHandler:
+// stopQuery: takes effect immediately; disableBackgroundDeliveryForType:'s completion is
+// logged the same way enableBackgroundDeliveryForType's already is, not awaited by the caller.
+- (void)disableBackgroundSyncForMetrics:(NSArray<NSString *> *)metrics {
+    NSArray<NSString *> *typesToDisable;
+    BOOL disablingAll = metrics.count == 0;
+    if (!disablingAll) {
+        NSDictionary *map = [RCTAppleHealthKit healthMetricToHKTypeMap];
+        NSMutableArray<NSString *> *resolved = [NSMutableArray array];
+        for (NSString *metric in metrics) {
+            NSString *hkType = map[metric];
+            if (hkType) {
+                [resolved addObject:hkType];
+            } else {
+                NSLog(@"[HealthKit] disableBackgroundSync: unknown metric '%@', skipping", metric);
+            }
+        }
+        typesToDisable = resolved;
+    } else {
+        typesToDisable = [self activeObserverTypes];
+        // Defense-in-depth against the cold-start race where initializeBackgroundObservers'
+        // async enableBackgroundDeliveryForType completion (which populates the registry)
+        // hasn't fired yet for every type when this runs: anything armed after this point
+        // still gets registered, but its update handler already checks this flag and no-ops
+        // if it's off, so a racing arm can't silently resume real fetch/upload behavior.
+        // Only safe to flip here because this is the disable-ALL path — a partial disable
+        // must not touch this global flag, since other metrics are meant to stay live.
+        [[NSUserDefaults standardUserDefaults] setBool:NO forKey:@"RNHealth_SyncEnabled"];
+    }
+
+    for (NSString *type in typesToDisable) {
+        HKObserverQuery *query = [self removeActiveObserverQueryForType:type];
+        if (!query) {
+            NSLog(@"[HealthKit] disableBackgroundSync: %@ is not currently armed, skipping", type);
+            continue;
+        }
+
+        [self.healthStore stopQuery:query];
+
+        HKSampleType *sampleType = [RCTAppleHealthKit sampleTypeForObserverType:type];
+        if (!sampleType) {
+            // Structurally shouldn't happen: only types that already resolved via this same
+            // method got into the registry in the first place (see fitness_registerObserver).
+            // Logged in case that invariant is ever broken by a future change.
+            NSLog(@"[HealthKit] disableBackgroundSync: %@ was armed but no longer resolves to an HKSampleType — background delivery left enabled for it", type);
+            continue;
+        }
+
+        [self.healthStore disableBackgroundDeliveryForType:sampleType withCompletion:^(BOOL success, NSError * _Nullable error) {
+            if (error) {
+                NSLog(@"[HealthKit] disableBackgroundDelivery failed for %@: %@", type, error.localizedDescription);
+            } else {
+                NSLog(@"[HealthKit] Background delivery disabled for %@", type);
+            }
+        }];
+    }
+}
+
+RCT_EXPORT_METHOD(disableBackgroundSync:(NSArray<NSString *> *)metrics) {
+    [self disableBackgroundSyncForMetrics:metrics];
 }
 
 // Will be called when this module's first listener is added.

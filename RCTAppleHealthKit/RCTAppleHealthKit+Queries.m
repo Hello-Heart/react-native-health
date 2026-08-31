@@ -1846,6 +1846,8 @@
                 return;
             }
             NSLog(@"[HealthKit] Background delivery enabled for %@", type);
+            // query is otherwise only reachable via this closure — store it for disableBackgroundSync.
+            [self registerActiveObserverQuery:query forType:type];
             [self.healthStore executeQuery:query];
             if (self.hasListeners) {
                 [self emitEventWithName:setupSuccessEvent andPayload:@{}];

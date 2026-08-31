@@ -193,6 +193,23 @@ NSString * const kMetadataKey = @"metadata";
 }
 
 /*!
+    Resolve the HKSampleType used to arm/disarm a background observer for a given
+    human-readable observer type. Mirrors fitness_registerObserver's resolution so
+    arm and disable always agree on the same HKSampleType for a given type string.
+
+    @param type Human readable observer type (e.g. 'SleepAnalysis', 'HeartRate')
+    @return HKSampleType, or nil if type is unknown
+ */
++ (HKSampleType *)sampleTypeForObserverType:(NSString *)type {
+    if ([type isEqualToString:@"SleepAnalysis"]) {
+        return [HKObjectType categoryTypeForIdentifier:HKCategoryTypeIdentifierSleepAnalysis];
+    } else if ([type isEqualToString:@"MindfulSession"]) {
+        return [HKObjectType categoryTypeForIdentifier:HKCategoryTypeIdentifierMindfulSession];
+    }
+    return [RCTAppleHealthKit quantityTypeFromName:type];
+}
+
+/*!
     Convert Human Readable name for a HealthKit data type into a HKObjectType format
 
     @param type The human readable format (e.g., 'HeartRate', 'StepCount', 'Workout')

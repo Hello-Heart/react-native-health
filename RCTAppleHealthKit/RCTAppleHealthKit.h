@@ -28,7 +28,14 @@
 - (void)getAuthorizationStatus:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback;
 - (void)initializeBackgroundObservers:(RCTBridge *)bridge;
 - (void)initializeBackgroundObservers:(RCTBridge *)bridge metrics:(nullable NSArray<NSString *> *)metrics;
+- (void)disableBackgroundSyncForMetrics:(nullable NSArray<NSString *> *)metrics;
 - (void)emitEventWithName:(NSString *)name andPayload:(NSDictionary *)payload;
+
+// Thread-safe registry of currently-armed background observer queries, keyed by
+// the human-readable observer type string (e.g. 'HeartRate', 'SleepAnalysis').
+- (void)registerActiveObserverQuery:(HKObserverQuery *)query forType:(NSString *)type;
+- (nullable HKObserverQuery *)removeActiveObserverQueryForType:(NSString *)type;
+- (NSArray<NSString *> *)activeObserverTypes;
 
 // Background Headless Task support
 - (void)launchHeadlessTask:(NSNumber *)taskId withType:(NSString *)type results:(NSDictionary *)results;
