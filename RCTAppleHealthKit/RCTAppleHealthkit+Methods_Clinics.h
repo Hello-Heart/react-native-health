@@ -17,5 +17,8 @@
 - (void)clinics_getProcedureRecords:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback;
 - (void)clinics_getLabRecords:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback;
 - (void)clinics_getClinicalVitalsRecords:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback;
+- (void)clinics_getCholesterolReadings:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback;
+
++ (NSDictionary *)cholesterolFieldFromFHIRRecord:(NSDictionary *)record;
 
 @end

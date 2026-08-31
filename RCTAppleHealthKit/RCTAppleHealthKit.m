@@ -585,6 +585,7 @@ RCT_EXPORT_METHOD(getDeltaSamples:(NSDictionary *)input callback:(RCTResponseSen
                 @"SleepAnalysis", @"BloodPressure", @"Workout",
                 @"AllergyRecord", @"ConditionRecord", @"CoverageRecord", @"ImmunizationRecord",
                 @"LabResultRecord", @"MedicationRecord", @"ProcedureRecord", @"VitalSignRecord",
+                @"CholesterolReadings",
             ],
         })]);
         return;
@@ -699,6 +700,52 @@ RCT_EXPORT_METHOD(getDeltaSamples:(NSDictionary *)input callback:(RCTResponseSen
             }
             callback(@[[NSNull null], results]);
         }];
+        return;
+    }
+
+    // ── CholesterolReadings (parsed FHIR lab panels) ──────────────────────────
+    if ([type isEqualToString:@"CholesterolReadings"]) {
+        if (@available(iOS 12.0, *)) {
+            HKClinicalType *labType = [HKClinicalType clinicalTypeForIdentifier:HKClinicalTypeIdentifierLabResultRecord];
+            [self fetchAnchoredClinicalSamplesOfType:labType
+                                           predicate:predicate
+                                              anchor:anchor
+                                               limit:limit
+                                          completion:^(NSDictionary *results, NSError *error) {
+                if (error) {
+                    callback(@[RCTMakeError(@"getDeltaSamples error", error, @{
+                        @"code":   @(error.code),
+                        @"domain": error.domain ?: @"",
+                        @"type":   type,
+                    })]);
+                    return;
+                }
+                NSArray *rawAdded = results[@"added"] ?: @[];
+                NSMutableArray *parsedAdded = [NSMutableArray arrayWithCapacity:rawAdded.count];
+                for (NSDictionary *record in rawAdded) {
+                    NSDictionary *entry = [RCTAppleHealthKit cholesterolFieldFromFHIRRecord:record];
+                    if (!entry) continue;
+                    NSMutableDictionary *parsed = [@{
+                        @"id":         record[@"id"]         ?: @"",
+                        @"startDate":  record[@"startDate"]  ?: @"",
+                        @"endDate":    record[@"endDate"]     ?: @"",
+                        @"sourceName": record[@"sourceName"]  ?: @"",
+                        @"sourceId":   record[@"sourceId"]    ?: @"",
+                    } mutableCopy];
+                    parsed[entry[@"field"]] = entry[@"value"];
+                    [parsedAdded addObject:parsed];
+                }
+                NSMutableDictionary *response = [results mutableCopy];
+                response[@"added"] = parsedAdded;
+                callback(@[[NSNull null], response]);
+            }];
+            return;
+        }
+        callback(@[RCTMakeError(@"getDeltaSamples error", nil, @{
+            @"code":   @(-1),
+            @"domain": @"RNHealth",
+            @"type":   type,
+        })]);
         return;
     }
 
@@ -1124,6 +1171,11 @@ RCT_EXPORT_METHOD(getLabRecords:(NSDictionary *)input callback:(RCTResponseSende
 RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback)
 {
     [self clinics_getClinicalVitalsRecords:input callback:callback];
+}
+RCT_EXPORT_METHOD(cholesterolReadings:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback)
+{
+    [self _initializeHealthStore];
+    [self clinics_getCholesterolReadings:input callback:callback];
 }
 
 - (HKHealthStore *)_initializeHealthStore {
