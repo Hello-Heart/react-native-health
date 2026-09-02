@@ -1846,6 +1846,20 @@
                 return;
             }
             NSLog(@"[HealthKit] Background delivery enabled for %@", type);
+
+            // Cold-start race (FEATURE.md): a full disable may land before this arm
+            // finishes. Re-check the flag; if sync got disabled meanwhile, undo the arm.
+            if (![[NSUserDefaults standardUserDefaults] boolForKey:@"RNHealth_SyncEnabled"]) {
+                NSLog(@"[HealthKit] %@ finished arming after sync was disabled — undoing", type);
+                [self.healthStore stopQuery:query];
+                [self.healthStore disableBackgroundDeliveryForType:sampleType withCompletion:^(BOOL success, NSError * _Nullable error) {
+                    if (error) {
+                        NSLog(@"[HealthKit] disableBackgroundDelivery failed for %@: %@", type, error.localizedDescription);
+                    }
+                }];
+                return;
+            }
+
             // query is otherwise only reachable via this closure — store it for disableBackgroundSync.
             [self registerActiveObserverQuery:query forType:type];
             [self.healthStore executeQuery:query];
