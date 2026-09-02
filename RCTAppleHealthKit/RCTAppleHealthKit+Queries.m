@@ -1849,6 +1849,9 @@
 
             // Cold-start race (FEATURE.md): a full disable may land before this arm
             // finishes. Re-check the flag; if sync got disabled meanwhile, undo the arm.
+            // Not joined to disableBackgroundSyncForMetrics's dispatch_group, so the JS
+            // promise can resolve before this straggler settles — harmless since
+            // RNHealth_SyncEnabled is already NO by then.
             if (![[NSUserDefaults standardUserDefaults] boolForKey:@"RNHealth_SyncEnabled"]) {
                 NSLog(@"[HealthKit] %@ finished arming after sync was disabled — undoing", type);
                 [self.healthStore stopQuery:query];
