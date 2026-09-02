@@ -1465,10 +1465,8 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
 }
 
 // Stops HealthKit background delivery for metrics (or, if nil/empty, every currently-armed
-// type). stopQuery: takes effect immediately; disableBackgroundDeliveryForType:'s completion
-// is tracked via dispatchGroup so the caller-supplied completion only fires once every
-// in-flight disable has actually settled — callers that restart/reload right after disabling
-// (e.g. logout) need that guarantee, not just "the call was queued".
+// type). completion fires only once every in-flight disableBackgroundDeliveryForType has
+// settled — callers that restart right after (e.g. logout) need that guarantee.
 - (void)disableBackgroundSyncForMetrics:(NSArray<NSString *> *)metrics
                               completion:(dispatch_block_t)completion {
     NSArray<NSString *> *typesToDisable;
@@ -1524,15 +1522,13 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
             } else {
                 NSLog(@"[HealthKit] Background delivery disabled for %@", type);
             }
-            // Best-effort teardown: a single metric's HealthKit error must not hang the
-            // caller (e.g. logout's restart) waiting on this group.
+            // Best-effort: a single metric's error must not hang the caller's restart.
             dispatch_group_leave(group);
         }];
     }
 
     if (completion) {
-        // Background queue: resolve/reject blocks are thread-safe from any queue, and this
-        // runs at logout time when the main thread may already be busy tearing down.
+        // Background queue: avoids main-thread contention during logout teardown.
         dispatch_group_notify(group, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), completion);
     }
 }
@@ -1541,8 +1537,7 @@ RCT_REMAP_METHOD(disableBackgroundSync,
                  disableBackgroundSyncWithMetrics:(NSArray<NSString *> *)metrics
                  resolver:(RCTPromiseResolveBlock)resolve
                  rejecter:(RCTPromiseRejectBlock)reject) {
-    // Best-effort teardown, matching the per-type error handling above: always resolves,
-    // never rejects — a flaky HealthKit response for one metric must not block the caller.
+    // Always resolves, never rejects — matches the per-type best-effort handling above.
     [self disableBackgroundSyncForMetrics:metrics completion:^{
         resolve(nil);
     }];
