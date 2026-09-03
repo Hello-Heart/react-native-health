@@ -1465,10 +1465,10 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
 }
 
 // Stops HealthKit background delivery for metrics (or, if nil/empty, every currently-armed
-// type). Fire-and-forget, matching configureBackgroundSync/registerBackgroundHandler:
-// stopQuery: takes effect immediately; disableBackgroundDeliveryForType:'s completion is
-// logged the same way enableBackgroundDeliveryForType's already is, not awaited by the caller.
-- (void)disableBackgroundSyncForMetrics:(NSArray<NSString *> *)metrics {
+// type). completion fires only once every in-flight disableBackgroundDeliveryForType has
+// settled — callers that restart right after (e.g. logout) need that guarantee.
+- (void)disableBackgroundSyncForMetrics:(NSArray<NSString *> *)metrics
+                              completion:(dispatch_block_t)completion {
     NSArray<NSString *> *typesToDisable;
     BOOL disablingAll = metrics.count == 0;
     if (!disablingAll) {
@@ -1495,6 +1495,8 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
         [[NSUserDefaults standardUserDefaults] setBool:NO forKey:@"RNHealth_SyncEnabled"];
     }
 
+    dispatch_group_t group = dispatch_group_create();
+
     for (NSString *type in typesToDisable) {
         HKObserverQuery *query = [self removeActiveObserverQueryForType:type];
         if (!query) {
@@ -1513,18 +1515,32 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
             continue;
         }
 
+        dispatch_group_enter(group);
         [self.healthStore disableBackgroundDeliveryForType:sampleType withCompletion:^(BOOL success, NSError * _Nullable error) {
             if (error) {
                 NSLog(@"[HealthKit] disableBackgroundDelivery failed for %@: %@", type, error.localizedDescription);
             } else {
                 NSLog(@"[HealthKit] Background delivery disabled for %@", type);
             }
+            // Best-effort: a single metric's error must not hang the caller's restart.
+            dispatch_group_leave(group);
         }];
+    }
+
+    if (completion) {
+        // Background queue: avoids main-thread contention during logout teardown.
+        dispatch_group_notify(group, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), completion);
     }
 }
 
-RCT_EXPORT_METHOD(disableBackgroundSync:(NSArray<NSString *> *)metrics) {
-    [self disableBackgroundSyncForMetrics:metrics];
+RCT_REMAP_METHOD(disableBackgroundSync,
+                 disableBackgroundSyncWithMetrics:(NSArray<NSString *> *)metrics
+                 resolver:(RCTPromiseResolveBlock)resolve
+                 rejecter:(RCTPromiseRejectBlock)reject) {
+    // Always resolves, never rejects — matches the per-type best-effort handling above.
+    [self disableBackgroundSyncForMetrics:metrics completion:^{
+        resolve(nil);
+    }];
 }
 
 // Will be called when this module's first listener is added.
