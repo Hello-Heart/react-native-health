@@ -166,6 +166,7 @@ export const HealthKit =
         getProcedureRecords: AppleHealthKit.getProcedureRecords,
         getLabRecords: AppleHealthKit.getLabRecords,
         getClinicalVitalRecords: AppleHealthKit.getClinicalVitalRecords,
+        cholesterolReadings: AppleHealthKit.cholesterolReadings,
         Constants: {
           Activities,
           Observers,

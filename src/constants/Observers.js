@@ -31,6 +31,7 @@ export const Observers = {
   Workout: 'Workout',
   // Clinical types (iOS 12+, requires HKHealthRecords entitlement)
   AllergyRecord: 'AllergyRecord',
+  CholesterolReadings: 'CholesterolReadings',
   ConditionRecord: 'ConditionRecord',
   CoverageRecord: 'CoverageRecord',
   ImmunizationRecord: 'ImmunizationRecord',
