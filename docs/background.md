@@ -53,7 +53,7 @@ following statements:
   ...
 
   /* Add Background initializer for HealthKit  */
-  [[RCTAppleHealthKit new] initializeBackgroundObservers:bridge];
+  [[RCTAppleHealthKit new] initializeBackgroundObservers];
 
   ...
 
