@@ -88,7 +88,7 @@ RCT_EXPORT_MODULE();
     BOOL syncEnabled = [[NSUserDefaults standardUserDefaults]
         boolForKey:@"RNHealth_SyncEnabled"];
     if (syncEnabled && [HKHealthStore isHealthDataAvailable]) {
-        [self initializeBackgroundObservers:nil];
+        [self initializeBackgroundObservers];
     }
 
     os_unfair_lock_lock(&_taskLock);
@@ -492,7 +492,7 @@ RCT_EXPORT_METHOD(configureBackgroundSync:(NSDictionary *)input)
 
     if (self.callableJSModules) {
         NSLog(@"[HealthKit] configureBackgroundSync — initializing background observers");
-        [self initializeBackgroundObservers:nil metrics:metrics];
+        [self initializeBackgroundObserversWithMetrics:metrics];
     } else {
         NSLog(@"[HealthKit] configureBackgroundSync — WARNING: callableJSModules is nil, observers NOT registered, will retry");
     }
@@ -1320,12 +1320,12 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
     };
 }
 
-- (void)initializeBackgroundObservers:(RCTBridge *)bridge {
+- (void)initializeBackgroundObservers {
     NSArray *savedMetrics = [[NSUserDefaults standardUserDefaults] objectForKey:@"RNHealth_SyncMetrics"];
-    [self initializeBackgroundObservers:bridge metrics:savedMetrics];
+    [self initializeBackgroundObserversWithMetrics:savedMetrics];
 }
 
-- (void)initializeBackgroundObservers:(RCTBridge *)bridge metrics:(NSArray<NSString *> *)metrics {
+- (void)initializeBackgroundObserversWithMetrics:(NSArray<NSString *> *)metrics {
     os_unfair_lock_lock(&_initLock);
     if (_observersInitialized) {
         os_unfair_lock_unlock(&_initLock);
@@ -1387,7 +1387,7 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
         }
 
         for (NSString *type in fitnessToRegister) {
-            [self fitness_registerObserver:type bridge:bridge];
+            [self fitness_registerObserver:type];
         }
 
         if (metrics.count > 0 && fitnessToRegister.count == 0) {
@@ -1416,10 +1416,10 @@ RCT_EXPORT_METHOD(getClinicalVitalRecords:(NSDictionary *)input callback:(RCTRes
             ];
 
             for (NSString *type in clinicalObservers) {
-                [self clinical_registerObserver:type bridge:bridge];
+                [self clinical_registerObserver:type];
             }
 
-            [self results_registerObservers:bridge];
+            [self results_registerObservers];
         }
 
         NSLog(@"[HealthKit] Background observers added to the app");
@@ -1546,7 +1546,7 @@ RCT_REMAP_METHOD(disableBackgroundSync,
 }
 
 - (void)emitEventInternal:(NSNotification *)notification {
-  if (self.hasListeners) {
+  if (self.hasListeners && self.callableJSModules) {
     [self sendEventWithName:notification.name
                    body:notification.userInfo];
   }

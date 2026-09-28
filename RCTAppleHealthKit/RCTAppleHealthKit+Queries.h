@@ -137,9 +137,8 @@
 - (void)setObserverForType:(HKSampleType *)quantityType
                       type:(NSString *)type __deprecated;
 
-- (void)setObserverForType:(HKSampleType *)quantityType
-                      type:(NSString *)type
-                    bridge:(RCTBridge *)bridge;
+- (void)setActiveObserverForType:(HKSampleType *)quantityType
+                             type:(NSString *)type;
 
 - (void)fetchActivitySummary:(NSDate *)startDate
                      endDate:(NSDate *)endDate
