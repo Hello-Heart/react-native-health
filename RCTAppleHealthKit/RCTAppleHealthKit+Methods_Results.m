@@ -247,11 +247,11 @@
     }];
 }
 
-- (void)results_registerObservers:(RCTBridge *)bridge
+- (void)results_registerObservers
 {
     if (@available(iOS 11.0, *)) {
         HKSampleType* insulinType = [HKObjectType quantityTypeForIdentifier:HKQuantityTypeIdentifierInsulinDelivery];
-        [self setObserverForType:insulinType type:@"InsulinDelivery" bridge:bridge];
+        [self setActiveObserverForType:insulinType type:@"InsulinDelivery"];
     }
 }
 

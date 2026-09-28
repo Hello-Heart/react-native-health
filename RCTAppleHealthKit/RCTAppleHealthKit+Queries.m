@@ -1581,11 +1581,9 @@
 
     @param sampleType The type of samples to add a listener for
     @param type A human readable description for the sample type
-    @param bridge React Native bridge instance
  */
-- (void)setObserverForType:(HKSampleType *)sampleType
-                      type:(NSString *)type
-                    bridge:(RCTBridge *)bridge
+- (void)setActiveObserverForType:(HKSampleType *)sampleType
+                             type:(NSString *)type
 {
     NSString *deltaEvent        = [NSString stringWithFormat:@"healthKit:%@:delta",         type];
     NSString *newEvent          = [NSString stringWithFormat:@"healthKit:%@:new",           type];

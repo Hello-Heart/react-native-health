@@ -26,8 +26,8 @@
 - (void)initializeHealthKit:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback;
 - (void)getModuleInfo:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback;
 - (void)getAuthorizationStatus:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback;
-- (void)initializeBackgroundObservers:(RCTBridge *)bridge;
-- (void)initializeBackgroundObservers:(RCTBridge *)bridge metrics:(nullable NSArray<NSString *> *)metrics;
+- (void)initializeBackgroundObservers;
+- (void)initializeBackgroundObserversWithMetrics:(nullable NSArray<NSString *> *)metrics;
 - (void)disableBackgroundSyncForMetrics:(nullable NSArray<NSString *> *)metrics
                               completion:(nullable dispatch_block_t)completion;
 - (void)emitEventWithName:(NSString *)name andPayload:(NSDictionary *)payload;

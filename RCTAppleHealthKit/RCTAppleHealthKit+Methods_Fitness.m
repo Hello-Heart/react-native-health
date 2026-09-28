@@ -494,14 +494,13 @@
     @param type Human Readable type
  */
 - (void)fitness_registerObserver:(NSString *)type
-                          bridge:(RCTBridge *)bridge
 {
     HKSampleType *sampleType = [RCTAppleHealthKit sampleTypeForObserverType:type];
     if (!sampleType) {
         NSLog(@"[HealthKit] Skipping observer for unknown type: %@", type);
         return;
     }
-    [self setObserverForType:sampleType type:type bridge:bridge];
+    [self setActiveObserverForType:sampleType type:type];
 }
 
 @end
